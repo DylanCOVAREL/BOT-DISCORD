@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Bot Discord avec prédictions IA pour le trading sur Trade Republic",
   "main": "bot.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "start": "node bot.js",
     "dev": "nodemon bot.js"
