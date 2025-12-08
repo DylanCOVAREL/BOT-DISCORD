@@ -1,0 +1,22 @@
+{
+  "name": "trading-bot-discord",
+  "version": "1.0.0",
+  "description": "Bot Discord avec prédictions IA pour le trading sur Trade Republic",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js",
+    "dev": "nodemon bot.js"
+  },
+  "keywords": ["discord", "bot", "trading", "ai", "predictions"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.3.1",
+    "axios": "^1.6.2",
+    "@google/generative-ai": "^0.1.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
