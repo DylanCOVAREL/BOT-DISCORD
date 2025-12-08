@@ -168,12 +168,12 @@ client.once('ready', () => {
         sendLog('🤖 Google Gemini AI activé (100% gratuit)', 'success');
     }
     
-    // 🔥 ALERTES AUTOMATIQUES TOUTES LES 30 MINUTES 🔥
-    console.log('🤖 Système d\'alertes automatiques activé - Envoi toutes les 30 minutes');
-    sendLog('🤖 Système d\'alertes automatiques activé - Cycle toutes les 30 minutes', 'info');
+    // 🔥 ALERTES AUTOMATIQUES TOUTES LES HEURES 🔥
+    console.log('🤖 Système d\'alertes automatiques activé - Envoi toutes les heures');
+    sendLog('🤖 Système d\'alertes automatiques activé - Cycle toutes les heures', 'info');
     setInterval(async () => {
         await sendAutomaticAlerts();
-    }, 1800000); // 30 minutes
+    }, 3600000); // 1 heure
 });
 
 client.on('interactionCreate', async interaction => {
@@ -198,15 +198,26 @@ client.on('interactionCreate', async interaction => {
 async function handleTest(interaction) {
     await interaction.editReply('🧪 **Test lancé!** Envoi du cycle d\'analyse en cours...');
     
-    sendLog('🧪 Cycle de test lancé manuellement', 'info');
+    sendLog('🧪 Cycle de test lancé manuellement (bypass mode nuit)', 'info');
     
-    // Lancer immédiatement le cycle d'alertes
-    await sendAutomaticAlerts();
+    // Lancer immédiatement le cycle d'alertes (force l'exécution même la nuit)
+    await sendAutomaticAlerts(true);
     
     await interaction.followUp('✅ Cycle d\'analyse terminé! Consultez le canal des alertes.');
 }
 
-async function sendAutomaticAlerts() {
+async function sendAutomaticAlerts(forceRun = false) {
+    // Vérifier l'heure (fuseau horaire local)
+    const now = new Date();
+    const hour = now.getHours();
+    
+    // Bloquer les alertes automatiques entre 23h et 7h (sauf si forceRun = true pour /test)
+    if (!forceRun && (hour >= 23 || hour < 7)) {
+        console.log(`🌙 Mode nuit activé (${hour}h) - Alertes automatiques désactivées jusqu'à 7h`);
+        sendLog(`🌙 Alertes automatiques ignorées (${hour}h) - Mode nuit actif`, 'info');
+        return;
+    }
+    
     const channel = client.channels.cache.get(ALERT_CHANNEL_ID);
     
     if (!channel) {
@@ -305,7 +316,7 @@ async function sendAutomaticAlerts() {
                 .setDescription(`Analyse automatique • ${stockData.name || stock.symbol}`)
                 .addFields(fields)
                 .setTimestamp()
-                .setFooter({ text: aiAnalysis.enabled ? '🤖 Analyse IA Google Gemini • Gratuit' : '🤖 Alerte automatique • Cycle toutes les 30 minutes' });
+                .setFooter({ text: aiAnalysis.enabled ? '🤖 Analyse IA Google Gemini • Gratuit' : '🤖 Alerte automatique • Cycle toutes les heures' });
             
             await channel.send({ embeds: [embed] });
             console.log(`✅ Alerte envoyée pour ${stock.symbol}`);
