@@ -89,10 +89,33 @@ async function getStockData(symbol) {
         
         return {
             ...quote.data,
-            ...profile.data
+            ...profile.data,
+            ath: profile.data.ath || quote.data.h // All-Time High
         };
     } catch (error) {
         console.error(`Erreur lors de la récupération des données pour ${symbol}:`, error.message);
+        return null;
+    }
+}
+
+// Fonction pour récupérer le prix maximum historique (All-Time High)
+async function getAllTimeHigh(symbol) {
+    try {
+        // Récupérer les données depuis le début de l'action (10 ans en arrière)
+        const to = Math.floor(Date.now() / 1000);
+        const from = to - (3650 * 24 * 60 * 60); // 10 ans
+        
+        const response = await axios.get(
+            `https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=D&from=${from}&to=${to}&token=${FINNHUB_API_KEY}`
+        );
+        
+        if (response.data && response.data.h && response.data.h.length > 0) {
+            const maxPrice = Math.max(...response.data.h);
+            return maxPrice;
+        }
+        return null;
+    } catch (error) {
+        console.error(`Erreur récupération ATH pour ${symbol}:`, error.message);
         return null;
     }
 }
@@ -212,8 +235,12 @@ async function sendAutomaticAlerts() {
         try {
             console.log(`📊 Analyse de ${stock.name} (${stock.symbol})...`);
             
-            // Récupérer uniquement les données actuelles (1 appel API)
-            const stockData = await getStockData(stock.symbol);
+            // Récupérer les données actuelles + ATH
+            const [stockData, ath] = await Promise.all([
+                getStockData(stock.symbol),
+                getAllTimeHigh(stock.symbol)
+            ]);
+            
             if (!stockData || !stockData.c) {
                 console.log(`⚠️ Pas de données pour ${stock.symbol}`);
                 continue; // Passer à l'action suivante
@@ -222,6 +249,9 @@ async function sendAutomaticAlerts() {
             // Calcul simplifié sans données historiques pour économiser les appels API
             const changePercent = ((stockData.c - stockData.pc) / stockData.pc * 100).toFixed(2);
             const emoji = changePercent >= 0 ? '📈' : '📉';
+            
+            // Calcul de la distance par rapport au ATH
+            const distanceFromATH = ath ? (((stockData.c - ath) / ath) * 100).toFixed(2) : null;
             
             // Analyse avec Google Gemini AI (GRATUIT)
             const aiAnalysis = await analyzeWithAI(stockData, stock.symbol, stock.name);
@@ -245,19 +275,35 @@ async function sendAutomaticAlerts() {
                 color = '#FFA500';
             }
             
+            const fields = [
+                { name: '💰 Prix Actuel', value: `$${stockData.c}`, inline: true },
+                { name: '📊 Variation 24h', value: `${changePercent}%`, inline: true },
+                { name: '🎯 Signal', value: signal, inline: true },
+                { name: '📈 Plus Haut (jour)', value: `$${stockData.h}`, inline: true },
+                { name: '📉 Plus Bas (jour)', value: `$${stockData.l}`, inline: true }
+            ];
+            
+            // Ajouter le ATH si disponible
+            if (ath) {
+                fields.push({ 
+                    name: '🏆 Plus Haut Historique', 
+                    value: `$${ath.toFixed(2)} (${distanceFromATH}%)`, 
+                    inline: true 
+                });
+            } else {
+                fields.push({ name: '🔒 Clôture Préc.', value: `$${stockData.pc}`, inline: true });
+            }
+            
+            fields.push({ 
+                name: aiAnalysis.enabled ? '🤖 Analyse IA Gemini' : '💡 Recommandation', 
+                value: recommendation 
+            });
+            
             const embed = new EmbedBuilder()
                 .setColor(color)
                 .setTitle(`${emoji} ${stock.name} (${stock.symbol})`)
                 .setDescription(`Analyse automatique • ${stockData.name || stock.symbol}`)
-                .addFields(
-                    { name: '💰 Prix Actuel', value: `$${stockData.c}`, inline: true },
-                    { name: '📊 Variation 24h', value: `${changePercent}%`, inline: true },
-                    { name: '🎯 Signal', value: signal, inline: true },
-                    { name: '📈 Plus Haut (jour)', value: `$${stockData.h}`, inline: true },
-                    { name: '📉 Plus Bas (jour)', value: `$${stockData.l}`, inline: true },
-                    { name: '🔒 Clôture Préc.', value: `$${stockData.pc}`, inline: true },
-                    { name: aiAnalysis.enabled ? '🤖 Analyse IA Gemini' : '💡 Recommandation', value: recommendation }
-                )
+                .addFields(fields)
                 .setTimestamp()
                 .setFooter({ text: aiAnalysis.enabled ? '🤖 Analyse IA Google Gemini • Gratuit' : '🤖 Alerte automatique • Cycle toutes les 30 minutes' });
             
