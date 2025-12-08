@@ -5,6 +5,14 @@ const { initializeGemini, analyzeWithAI } = require('./aiAnalysis');
 
 dotenv.config();
 
+// Keep-Alive pour Glitch.com (empêche la mise en veille)
+const http = require('http');
+http.createServer((req, res) => {
+  res.writeHead(200);
+  res.end('🤖 Bot Trading Discord is alive!');
+}).listen(3000);
+console.log('🌐 Serveur HTTP actif sur le port 3000 (Keep-Alive Glitch)');
+
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
