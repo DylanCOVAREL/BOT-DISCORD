@@ -1,6 +1,6 @@
 const { Client, GatewayIntentBits, EmbedBuilder, SlashCommandBuilder, REST, Routes } = require('discord.js');
 const dotenv = require('dotenv');
-const axios = require('axios');
+const yahooFinance = require('yahoo-finance2').default;
 const { initializeGemini, analyzeWithAI } = require('./aiAnalysis');
 
 dotenv.config();
@@ -26,7 +26,6 @@ const client = new Client({
 });
 
 // Configuration
-const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY;
 const ALERT_CHANNEL_ID = process.env.ALERT_CHANNEL_ID;
 const LOG_CHANNEL_ID = process.env.LOG_CHANNEL_ID;
 const ADMIN_USER_ID = process.env.ADMIN_USER_ID;
@@ -86,15 +85,14 @@ const commands = [
 // Fonction pour récupérer les données de marché
 async function getStockData(symbol) {
     try {
-        const [quote, profile] = await Promise.all([
-            axios.get(`https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${FINNHUB_API_KEY}`),
-            axios.get(`https://finnhub.io/api/v1/stock/profile2?symbol=${symbol}&token=${FINNHUB_API_KEY}`)
-        ]);
+        const quote = await yahooFinance.quote(symbol);
         
         return {
-            ...quote.data,
-            ...profile.data,
-            ath: profile.data.ath || quote.data.h // All-Time High
+            c: quote.regularMarketPrice,           // Prix actuel
+            pc: quote.regularMarketPreviousClose,  // Prix de clôture précédent
+            h: quote.regularMarketDayHigh,         // Plus haut du jour
+            l: quote.regularMarketDayLow,          // Plus bas du jour
+            name: quote.longName || quote.shortName || symbol
         };
     } catch (error) {
         console.error(`Erreur lors de la récupération des données pour ${symbol}:`, error.message);
@@ -105,21 +103,24 @@ async function getStockData(symbol) {
 // Fonction pour récupérer le prix maximum historique (All-Time High)
 async function getAllTimeHigh(symbol) {
     try {
-        // Récupérer 5 ans de données (max pour Finnhub gratuit)
-        const to = Math.floor(Date.now() / 1000);
-        const from = to - (1825 * 24 * 60 * 60); // 5 ans
+        // Récupérer 5 ans de données historiques
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setFullYear(startDate.getFullYear() - 5);
         
-        const response = await axios.get(
-            `https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=W&from=${from}&to=${to}&token=${FINNHUB_API_KEY}`
-        );
+        const historicalData = await yahooFinance.historical(symbol, {
+            period1: startDate,
+            period2: endDate,
+            interval: '1wk' // Données hebdomadaires pour réduire la charge
+        });
         
-        if (response.data && response.data.h && response.data.h.length > 0 && response.data.s === 'ok') {
-            const maxPrice = Math.max(...response.data.h);
+        if (historicalData && historicalData.length > 0) {
+            const maxPrice = Math.max(...historicalData.map(d => d.high));
             console.log(`✅ ATH trouvé pour ${symbol}: $${maxPrice.toFixed(2)}`);
             return maxPrice;
         }
         
-        console.log(`⚠️ Pas de données ATH pour ${symbol}, utilisation du plus haut du jour`);
+        console.log(`⚠️ Pas de données ATH pour ${symbol}`);
         return null;
     } catch (error) {
         console.error(`❌ Erreur récupération ATH pour ${symbol}:`, error.message);
@@ -130,14 +131,29 @@ async function getAllTimeHigh(symbol) {
 // Fonction pour récupérer les données historiques
 async function getHistoricalData(symbol, days = 30) {
     try {
-        const to = Math.floor(Date.now() / 1000);
-        const from = to - (days * 24 * 60 * 60);
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - days);
         
-        const response = await axios.get(
-            `https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=D&from=${from}&to=${to}&token=${FINNHUB_API_KEY}`
-        );
+        const historicalData = await yahooFinance.historical(symbol, {
+            period1: startDate,
+            period2: endDate,
+            interval: '1d' // Données quotidiennes
+        });
         
-        return response.data;
+        if (historicalData && historicalData.length > 0) {
+            // Convertir au format compatible avec les fonctions existantes
+            return {
+                c: historicalData.map(d => d.close),
+                h: historicalData.map(d => d.high),
+                l: historicalData.map(d => d.low),
+                o: historicalData.map(d => d.open),
+                t: historicalData.map(d => Math.floor(d.date.getTime() / 1000)),
+                s: 'ok'
+            };
+        }
+        
+        return null;
     } catch (error) {
         console.error(`Erreur historique pour ${symbol}:`, error.message);
         return null;
