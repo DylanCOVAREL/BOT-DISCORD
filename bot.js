@@ -140,6 +140,128 @@ async function getHistoricalData(symbol, days = 30) {
     }
 }
 
+// Fonction pour calculer la tendance sur 6 mois
+function calculateTrend(historicalData) {
+    if (!historicalData || !historicalData.c || historicalData.c.length < 30) {
+        return { trend: 'Données insuffisantes', emoji: '❓', score: 0 };
+    }
+    
+    const prices = historicalData.c;
+    const firstMonth = prices.slice(0, 30).reduce((a, b) => a + b, 0) / 30; // Moyenne 1er mois
+    const lastMonth = prices.slice(-30).reduce((a, b) => a + b, 0) / 30; // Moyenne dernier mois
+    
+    const changePercent = ((lastMonth - firstMonth) / firstMonth) * 100;
+    
+    if (changePercent > 15) {
+        return { trend: 'Très Haussière', emoji: '🚀', score: 2 };
+    } else if (changePercent > 5) {
+        return { trend: 'Haussière', emoji: '📈', score: 1 };
+    } else if (changePercent < -15) {
+        return { trend: 'Très Baissière', emoji: '💥', score: -2 };
+    } else if (changePercent < -5) {
+        return { trend: 'Baissière', emoji: '📉', score: -1 };
+    } else {
+        return { trend: 'Neutre/Latérale', emoji: '➡️', score: 0 };
+    }
+}
+
+// Fonction pour calculer la volatilité (écart-type des variations)
+function calculateVolatility(historicalData) {
+    if (!historicalData || !historicalData.c || historicalData.c.length < 30) {
+        return { volatility: 'Inconnue', emoji: '❓', level: 'N/A', score: 0 };
+    }
+    
+    const prices = historicalData.c;
+    const returns = [];
+    
+    // Calculer les variations quotidiennes en %
+    for (let i = 1; i < prices.length; i++) {
+        const dailyReturn = ((prices[i] - prices[i-1]) / prices[i-1]) * 100;
+        returns.push(dailyReturn);
+    }
+    
+    // Calculer l'écart-type (volatilité)
+    const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
+    const variance = returns.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / returns.length;
+    const stdDev = Math.sqrt(variance);
+    
+    let level, emoji;
+    if (stdDev < 1.5) {
+        level = 'Très Faible';
+        emoji = '🟢';
+    } else if (stdDev < 2.5) {
+        level = 'Faible';
+        emoji = '🔵';
+    } else if (stdDev < 3.5) {
+        level = 'Moyenne';
+        emoji = '🟡';
+    } else if (stdDev < 5) {
+        level = 'Élevée';
+        emoji = '🟠';
+    } else {
+        level = 'Très Élevée';
+        emoji = '🔴';
+    }
+    
+    return { 
+        volatility: `${stdDev.toFixed(2)}%`, 
+        emoji, 
+        level,
+        score: stdDev 
+    };
+}
+
+// Fonction pour générer une recommandation intelligente
+function getSmartRecommendation(trendData, volatilityData, distanceFromATH, currentPrice) {
+    let score = 0;
+    
+    // Score basé sur la tendance (60% du poids)
+    score += trendData.score * 3;
+    
+    // Score basé sur la distance du ATH (30% du poids)
+    if (distanceFromATH < -40) {
+        score += 2; // Très loin du ATH = opportunité
+    } else if (distanceFromATH < -25) {
+        score += 1;
+    } else if (distanceFromATH > -5) {
+        score -= 2; // Proche du ATH = risque
+    } else if (distanceFromATH > -15) {
+        score -= 1;
+    }
+    
+    // Pénalité pour volatilité élevée (10% du poids)
+    if (volatilityData.score > 4) {
+        score -= 1;
+    }
+    
+    // Générer la recommandation
+    let recommendation, emoji, color;
+    
+    if (score >= 5) {
+        recommendation = '🟢 ACHETER FORT';
+        emoji = '💰';
+        color = '#00ff00';
+    } else if (score >= 2) {
+        recommendation = '🔵 ACHETER';
+        emoji = '✅';
+        color = '#4169E1';
+    } else if (score >= -2) {
+        recommendation = '🟡 ATTENDRE';
+        emoji = '⏳';
+        color = '#FFD700';
+    } else if (score >= -5) {
+        recommendation = '🟠 ÉVITER';
+        emoji = '⚠️';
+        color = '#FFA500';
+    } else {
+        recommendation = '🔴 VENDRE';
+        emoji = '❌';
+        color = '#ff0000';
+    }
+    
+    return { recommendation, emoji, color, score };
+}
+
 client.once('ready', async () => {
     console.log(`✅ Bot connecté en tant que ${client.user.tag}`);
     sendLog(`Bot connecté en tant que **${client.user.tag}**`, 'start');
@@ -254,10 +376,11 @@ async function sendAutomaticAlerts(forceRun = false) {
         try {
             console.log(`📊 Analyse de ${stock.name} (${stock.symbol})...`);
             
-            // Récupérer les données actuelles + ATH
-            const [stockData, ath] = await Promise.all([
+            // Récupérer les données actuelles + ATH + historique 6 mois
+            const [stockData, ath, historicalData] = await Promise.all([
                 getStockData(stock.symbol),
-                getAllTimeHigh(stock.symbol)
+                getAllTimeHigh(stock.symbol),
+                getHistoricalData(stock.symbol, 180) // 6 mois = 180 jours
             ]);
             
             if (!stockData || !stockData.c) {
@@ -265,79 +388,74 @@ async function sendAutomaticAlerts(forceRun = false) {
                 continue; // Passer à l'action suivante
             }
             
-            // Calcul simplifié sans données historiques pour économiser les appels API
+            // Calcul de la variation 24h
             const changePercent = ((stockData.c - stockData.pc) / stockData.pc * 100).toFixed(2);
             const emoji = changePercent >= 0 ? '📈' : '📉';
             
+            // Analyse technique sur 6 mois
+            const trendData = calculateTrend(historicalData);
+            const volatilityData = calculateVolatility(historicalData);
+            console.log(`📈 Tendance 6 mois: ${trendData.trend}, Volatilité: ${volatilityData.level}`);
+            
             // Calcul de la distance par rapport au ATH
-            const distanceFromATH = ath ? (((stockData.c - ath) / ath) * 100).toFixed(2) : null;
+            const distanceFromATH = ath ? (((stockData.c - ath) / ath) * 100).toFixed(2) : -50;
             
-            // Analyse avec Google Gemini AI (GRATUIT)
+            // Générer la recommandation intelligente
+            const smartReco = getSmartRecommendation(trendData, volatilityData, parseFloat(distanceFromATH), stockData.c);
+            console.log(`💡 Recommandation: ${smartReco.recommendation}`);
+            
+            // Analyse avec IA (optionnel pour contexte supplémentaire)
             const aiAnalysis = await analyzeWithAI(stockData, stock.symbol, stock.name);
-            console.log(`🤖 IA activée: ${aiAnalysis.enabled}, Analyse: ${aiAnalysis.analysis.substring(0, 50)}...`);
+            console.log(`🤖 IA activée: ${aiAnalysis.enabled}`);
             
-            // Utiliser l'analyse IA
-            const recommendation = aiAnalysis.analysis;
-            
-            // Analyse simplifiée basée sur le changement de prix
+            // Définir signal et couleur basés sur variation 24h
             let signal = '⚪ Stable';
-            let color = '#FFD700';
-            
             if (changePercent > 5) {
                 signal = '🚀 Très Haussier';
-                color = '#00ff00';
             } else if (changePercent > 2) {
                 signal = '📈 Haussier';
-                color = '#90EE90';
             } else if (changePercent > 0.5) {
                 signal = '➕ Légèrement Positif';
-                color = '#B8E6B8';
             } else if (changePercent < -5) {
                 signal = '💥 Très Baissier';
-                color = '#ff0000';
             } else if (changePercent < -2) {
                 signal = '📉 Baissier';
-                color = '#FFA500';
             } else if (changePercent < -0.5) {
                 signal = '➖ Légèrement Négatif';
-                color = '#FFD580';
             }
+            
+            // Utiliser la couleur de la recommandation intelligente
+            const color = smartReco.color;
             
             const fields = [
                 { name: '💰 Prix Actuel', value: `$${stockData.c}`, inline: true },
                 { name: '📊 Variation 24h', value: `${changePercent}%`, inline: true },
-                { name: '🎯 Signal', value: signal, inline: true }
+                { name: '🎯 Signal 24h', value: signal, inline: true },
+                { name: `${trendData.emoji} Tendance 6 mois`, value: trendData.trend, inline: true },
+                { name: `${volatilityData.emoji} Volatilité`, value: `${volatilityData.level} (${volatilityData.volatility})`, inline: true },
+                { name: '🏆 Distance ATH', value: ath ? `${distanceFromATH}%` : 'N/A', inline: true }
             ];
             
-            // Toujours afficher le ATH (ou le plus haut du jour si indisponible)
-            if (ath && ath > stockData.h) {
+            // Ajouter la recommandation intelligente en grand
+            fields.push({ 
+                name: `${smartReco.emoji} RECOMMANDATION INTELLIGENTE`, 
+                value: `**${smartReco.recommendation}**\n\n💡 *Basée sur: tendance 6 mois, volatilité et distance ATH*`
+            });
+            
+            // Optionnel: ajouter l'analyse IA si disponible
+            if (aiAnalysis.enabled && aiAnalysis.analysis) {
                 fields.push({ 
-                    name: '🏆 Plus Haut Historique (5 ans)', 
-                    value: `$${ath.toFixed(2)} (${distanceFromATH}%)`, 
-                    inline: true 
-                });
-            } else {
-                // Fallback: utiliser le plus haut du jour
-                const dayHigh = stockData.h;
-                const distanceFromDayHigh = (((stockData.c - dayHigh) / dayHigh) * 100).toFixed(2);
-                fields.push({ 
-                    name: '🏆 Plus Haut (5 ans)', 
-                    value: ath ? `$${ath.toFixed(2)} (${distanceFromATH}%)` : `$${dayHigh.toFixed(2)} (${distanceFromDayHigh}%)`, 
-                    inline: true 
+                    name: '🤖 Analyse IA (Contexte)', 
+                    value: aiAnalysis.analysis.substring(0, 300) + (aiAnalysis.analysis.length > 300 ? '...' : '')
                 });
             }
-            
-            fields.push({ 
-                name: '🤖 Recommandation IA', 
-                value: recommendation 
-            });
             
             const embed = new EmbedBuilder()
                 .setColor(color)
                 .setTitle(`${emoji} ${stock.name} (${stock.symbol})`)
                 .addFields(fields)
                 .setTimestamp()
-                .setFooter({ text: '🤖 Analyse IA Groq • Gratuit' });
+                .setFooter({ text: '📊 Analyse Technique 6 mois • 🤖 IA Groq' });
             
             await channel.send({ embeds: [embed] });
             console.log(`✅ Alerte envoyée pour ${stock.symbol}`);
