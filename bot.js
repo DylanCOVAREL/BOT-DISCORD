@@ -181,7 +181,7 @@ client.once('ready', async () => {
     // Puis toutes les heures
     setInterval(async () => {
         await sendAutomaticAlerts();
-    }, 1800000); // 1 heure = 3600000
+    }, 3600000); // 1 heure = 3600000
 });
 
 client.on('interactionCreate', async interaction => {
