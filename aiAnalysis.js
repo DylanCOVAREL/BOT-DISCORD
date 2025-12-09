@@ -1,5 +1,5 @@
 /**
- * Module d'analyse IA avec Groq (100% GRATUIT - Llama 3.1 70B)
+ * Module d'analyse IA avec Groq (100% GRATUIT - Llama 3.3 70B)
  */
 
 const Groq = require('groq-sdk');
@@ -15,7 +15,7 @@ function initializeGemini(apiKey) {
     
     try {
         groq = new Groq({ apiKey: apiKey });
-        console.log('✅ Groq AI initialisé (Llama 3.1 70B)');
+        console.log('✅ Groq AI initialisé (Llama 3.3 70B)');
         return true;
     } catch (error) {
         console.error('❌ Erreur initialisation Groq:', error.message);
@@ -24,7 +24,7 @@ function initializeGemini(apiKey) {
 }
 
 /**
- * Analyse IA d'une action avec Groq - Llama 3.1 70B
+ * Analyse IA d'une action avec Groq - Llama 3.3 70B
  */
 async function analyzeWithAI(stockData, symbol, stockName, retryCount = 0) {
     if (!groq) {
@@ -71,7 +71,7 @@ Exemple: "**ACHETER** - Tendance haussière forte"`;
                     content: prompt
                 }
             ],
-            model: "llama-3.1-70b-versatile",
+            model: "llama-3.3-70b-versatile",
             temperature: 0.5,
             max_tokens: 100
         });

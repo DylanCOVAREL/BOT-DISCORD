@@ -310,7 +310,7 @@ client.once('ready', async () => {
     // Initialiser Groq AI (GRATUIT)
     const geminiEnabled = initializeGemini(process.env.GEMINI_API_KEY);
     if (geminiEnabled) {
-        sendLog('🤖 Groq AI activé - Llama 3.1 70B (100% gratuit)', 'success');
+        sendLog('🤖 Groq AI activé - Llama 3.3 70B (100% gratuit)', 'success');
     }
     
     // 🔥 ALERTES AUTOMATIQUES TOUTES LES HEURES 🔥
@@ -457,10 +457,18 @@ async function sendAutomaticAlerts(forceRun = false) {
                 { name: '🏆 Distance ATH', value: ath ? `${distanceFromATH}%` : 'N/A', inline: true }
             ];
             
-            // Ajouter la recommandation intelligente en grand
+            // Ajouter la recommandation intelligente en grand avec détails
+            let recoDetails = `**${smartReco.recommendation}**\n\n`;
+            recoDetails += `📊 **Analyse détaillée:**\n`;
+            recoDetails += `• Tendance 6 mois: ${trendData.trend} ${trendData.emoji}\n`;
+            recoDetails += `• Distance du ATH: ${distanceFromATH}% (${parseFloat(distanceFromATH) < -30 ? 'Opportunité' : parseFloat(distanceFromATH) > -10 ? 'Risque élevé' : 'Neutre'})\n`;
+            recoDetails += `• Volatilité: ${volatilityData.level} (${parseFloat(volatilityData.score) < 2 ? 'Stable' : parseFloat(volatilityData.score) > 4 ? 'Très risqué' : 'Modéré'})\n`;
+            recoDetails += `• Score global: ${smartReco.score}/10\n\n`;
+            recoDetails += `💡 *Combinaison de 3 indicateurs techniques sur 6 mois*`;
+            
             fields.push({ 
                 name: `${smartReco.emoji} RECOMMANDATION INTELLIGENTE`, 
-                value: `**${smartReco.recommendation}**\n\n💡 *Basée sur: tendance 6 mois, volatilité et distance ATH*`
+                value: recoDetails
             });
             
             // Optionnel: ajouter l'analyse IA si disponible
