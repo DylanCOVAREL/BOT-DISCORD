@@ -165,10 +165,10 @@ client.once('ready', () => {
         }
     })();
     
-    // Initialiser Google Gemini AI (GRATUIT)
+    // Initialiser Groq AI (GRATUIT)
     const geminiEnabled = initializeGemini(process.env.GEMINI_API_KEY);
     if (geminiEnabled) {
-        sendLog('🤖 Google Gemini AI activé (100% gratuit)', 'success');
+        sendLog('🤖 Groq AI activé - Llama 3.1 70B (100% gratuit)', 'success');
     }
     
     // 🔥 ALERTES AUTOMATIQUES TOUTES LES HEURES 🔥

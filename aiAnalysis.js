@@ -1,26 +1,24 @@
 /**
- * Module d'analyse IA avec Google Gemini (100% GRATUIT)
+ * Module d'analyse IA avec Groq (100% GRATUIT)
  */
 
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const Groq = require('groq-sdk');
 
-let genAI = null;
-let model = null;
+let groq = null;
 
-// Initialiser Gemini
+// Initialiser Groq
 function initializeGemini(apiKey) {
     if (!apiKey) {
-        console.log('⚠️ Pas de clé Gemini configurée - Mode IA désactivé');
+        console.log('⚠️ Pas de clé Groq configurée - Mode IA désactivé');
         return false;
     }
     
     try {
-        genAI = new GoogleGenerativeAI(apiKey);
-        model = genAI.getGenerativeModel({ model: 'gemini-pro' });
-        console.log('✅ Google Gemini AI initialisé (gemini-pro)');
+        groq = new Groq({ apiKey: apiKey });
+        console.log('✅ Groq AI initialisé (Llama 3.1 70B)');
         return true;
     } catch (error) {
-        console.error('❌ Erreur initialisation Gemini:', error.message);
+        console.error('❌ Erreur initialisation Groq:', error.message);
         return false;
     }
 }
