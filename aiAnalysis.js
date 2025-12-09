@@ -72,21 +72,27 @@ Exemple: "**ACHETER** - Tendance haussière forte"`;
         console.error(`❌ Erreur analyse IA pour ${symbol}:`, error.message);
         console.error(`❌ Détails erreur:`, error);
         
-        // Message plus descriptif selon le type d'erreur
-        let errorMsg = '➡️ **SURVEILLER** - ';
-        if (error.message.includes('API key')) {
-            errorMsg += 'Clé API Gemini invalide';
-        } else if (error.message.includes('quota')) {
-            errorMsg += 'Quota API dépassé, réessayez plus tard';
-        } else if (error.message.includes('network') || error.message.includes('ENOTFOUND')) {
-            errorMsg += 'Problème de connexion réseau';
+        // FALLBACK : Analyse simple basée sur la variation
+        const changePercent = parseFloat(((stockData.c - stockData.pc) / stockData.pc * 100).toFixed(2));
+        let fallbackAnalysis = '';
+        
+        if (changePercent > 5) {
+            fallbackAnalysis = '**ACHETER** - Forte hausse en cours (+' + changePercent + '%)';
+        } else if (changePercent > 2) {
+            fallbackAnalysis = '**CONSERVER** - Tendance haussière modérée (+' + changePercent + '%)';
+        } else if (changePercent < -5) {
+            fallbackAnalysis = '**VENDRE** - Forte baisse détectée (' + changePercent + '%)';
+        } else if (changePercent < -2) {
+            fallbackAnalysis = '**SURVEILLER** - Tendance baissière (' + changePercent + '%)';
         } else {
-            errorMsg += `Erreur IA: ${error.message.substring(0, 50)}`;
+            fallbackAnalysis = '**CONSERVER** - Stabilité du cours (' + changePercent + '%)';
         }
+        
+        console.log(`ℹ️ Utilisation analyse fallback pour ${symbol}: ${fallbackAnalysis}`);
         
         return {
             enabled: false,
-            analysis: errorMsg
+            analysis: fallbackAnalysis
         };
     }
 }
