@@ -32,44 +32,43 @@ async function analyzeWithAI(stockData, symbol, stockName) {
     if (!model) {
         return {
             enabled: false,
-            analysis: 'IA non disponible - Utilisez l\'analyse technique classique'
+            analysis: '➡️ **SURVEILLER** - Analyser plus en détail avant d\'agir'
         };
     }
     
     try {
         const changePercent = ((stockData.c - stockData.pc) / stockData.pc * 100).toFixed(2);
         
-        const prompt = `Tu es un expert en analyse financière et trading. Analyse cette action et donne une recommandation claire.
+        const prompt = `Tu es un expert trader. Analyse cette action et donne UNE SEULE phrase de recommandation claire et directe.
 
 **Action:** ${stockName} (${symbol})
 **Prix actuel:** $${stockData.c}
 **Variation 24h:** ${changePercent}%
-**Plus haut du jour:** $${stockData.h}
-**Plus bas du jour:** $${stockData.l}
 **Clôture précédente:** $${stockData.pc}
 
-Donne une analyse concise en 3-4 phrases maximum incluant:
-1. Ton évaluation de la tendance actuelle
-2. Une recommandation claire (Acheter/Conserver/Vendre)
-3. Le niveau de risque
-4. Un conseil actionnable
+IMPORTANT: Réponds en UNE SEULE PHRASE courte (max 100 caractères) avec:
+- Le verbe d'action en gras: **ACHETER**, **VENDRE**, **CONSERVER** ou **SURVEILLER**
+- Une raison très brève
 
-Sois direct et pragmatique. Format: texte simple sans formatage markdown.`;
+Exemple: "**ACHETER** - Forte tendance haussière confirmée"
+Exemple: "**SURVEILLER** - Volatilité importante, attendre confirmation"
+
+Réponds UNIQUEMENT avec cette phrase, rien d'autre.`;
 
         const result = await model.generateContent(prompt);
         const response = await result.response;
-        const analysis = response.text();
+        const analysis = response.text().trim();
         
         return {
             enabled: true,
-            analysis: analysis.trim()
+            analysis: analysis
         };
         
     } catch (error) {
         console.error(`❌ Erreur analyse IA pour ${symbol}:`, error.message);
         return {
             enabled: false,
-            analysis: 'Analyse IA temporairement indisponible'
+            analysis: '➡️ **SURVEILLER** - Analyse IA temporairement indisponible'
         };
     }
 }

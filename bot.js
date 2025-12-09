@@ -292,9 +292,7 @@ async function sendAutomaticAlerts(forceRun = false) {
             const fields = [
                 { name: '💰 Prix Actuel', value: `$${stockData.c}`, inline: true },
                 { name: '📊 Variation 24h', value: `${changePercent}%`, inline: true },
-                { name: '🎯 Signal', value: signal, inline: true },
-                { name: '📈 Plus Haut (jour)', value: `$${stockData.h}`, inline: true },
-                { name: '📉 Plus Bas (jour)', value: `$${stockData.l}`, inline: true }
+                { name: '🎯 Signal', value: signal, inline: true }
             ];
             
             // Toujours afficher le ATH (ou le plus haut du jour si indisponible)
