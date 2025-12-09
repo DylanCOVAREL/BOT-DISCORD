@@ -55,16 +55,20 @@ async function analyzeWithAI(stockData, symbol, stockName, retryCount = 0) {
         
         const prompt = `Action: ${stockName} (${symbol})
 Prix: $${stockData.c}
-Variation: ${changePercent}%
+Variation 24h: ${changePercent}%
 
-Recommande en 1 phrase courte avec: **ACHETER**, **VENDRE**, **CONSERVER** ou **SURVEILLER** suivi de la raison.
-Exemple: "**ACHETER** - Tendance haussière forte"`;
+Donne un conseil précis avec timing pour un investisseur.
+Exemples:
+- "Achète maintenant - Prix au plus bas depuis 3 mois"
+- "Attends la fin de la semaine - Tendance encore baissière"
+- "Vends rapidement - Signal de retournement baissier"
+- "Patiente encore 2-3 jours - Volatilité trop élevée"`;
 
         const completion = await groq.chat.completions.create({
             messages: [
                 {
                     role: "system",
-                    content: "Tu es un expert trader. Réponds en 1 phrase courte et directe avec une action en gras (**ACHETER**, **VENDRE**, **CONSERVER**, **SURVEILLER**) suivie d'une raison brève."
+                    content: "Tu es un expert trader qui donne des conseils précis avec timing. Réponds en 1 phrase courte et directe avec un conseil d'action immédiat (achète maintenant, attends X jours, vends rapidement, etc.) suivi d'une raison brève."
                 },
                 {
                     role: "user",
@@ -72,8 +76,8 @@ Exemple: "**ACHETER** - Tendance haussière forte"`;
                 }
             ],
             model: "llama-3.3-70b-versatile",
-            temperature: 0.5,
-            max_tokens: 100
+            temperature: 0.7,
+            max_tokens: 150
         });
         
         const analysis = completion.choices[0]?.message?.content?.trim();

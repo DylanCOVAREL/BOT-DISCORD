@@ -457,25 +457,17 @@ async function sendAutomaticAlerts(forceRun = false) {
                 { name: '🏆 Distance ATH', value: ath ? `${distanceFromATH}%` : 'N/A', inline: true }
             ];
             
-            // Ajouter la recommandation intelligente en grand avec détails
-            let recoDetails = `**${smartReco.recommendation}**\n\n`;
-            recoDetails += `📊 **Analyse détaillée:**\n`;
-            recoDetails += `• Tendance 6 mois: ${trendData.trend} ${trendData.emoji}\n`;
-            recoDetails += `• Distance du ATH: ${distanceFromATH}% (${parseFloat(distanceFromATH) < -30 ? 'Opportunité' : parseFloat(distanceFromATH) > -10 ? 'Risque élevé' : 'Neutre'})\n`;
-            recoDetails += `• Volatilité: ${volatilityData.level} (${parseFloat(volatilityData.score) < 2 ? 'Stable' : parseFloat(volatilityData.score) > 4 ? 'Très risqué' : 'Modéré'})\n`;
-            recoDetails += `• Score global: ${smartReco.score}/10\n\n`;
-            recoDetails += `💡 *Combinaison de 3 indicateurs techniques sur 6 mois*`;
-            
+            // Ajouter la recommandation intelligente
             fields.push({ 
                 name: `${smartReco.emoji} RECOMMANDATION INTELLIGENTE`, 
-                value: recoDetails
+                value: `**${smartReco.recommendation}**`
             });
             
             // Optionnel: ajouter l'analyse IA si disponible
             if (aiAnalysis.enabled && aiAnalysis.analysis) {
                 fields.push({ 
-                    name: '🤖 Analyse IA (Contexte)', 
-                    value: aiAnalysis.analysis.substring(0, 300) + (aiAnalysis.analysis.length > 300 ? '...' : '')
+                    name: '🤖 Conseil IA Timing', 
+                    value: aiAnalysis.analysis
                 });
             }
             
