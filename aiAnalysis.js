@@ -39,25 +39,29 @@ async function analyzeWithAI(stockData, symbol, stockName) {
     try {
         const changePercent = ((stockData.c - stockData.pc) / stockData.pc * 100).toFixed(2);
         
-        const prompt = `Tu es un expert trader. Analyse cette action et donne UNE SEULE phrase de recommandation claire et directe.
+        // Prompt ultra-simplifié pour réduire les erreurs API
+        const prompt = `Action: ${stockName} (${symbol})
+Prix: $${stockData.c}
+Variation: ${changePercent}%
 
-**Action:** ${stockName} (${symbol})
-**Prix actuel:** $${stockData.c}
-**Variation 24h:** ${changePercent}%
-**Clôture précédente:** $${stockData.pc}
+Recommande en 1 phrase courte avec: **ACHETER**, **VENDRE**, **CONSERVER** ou **SURVEILLER** suivi de la raison.
+Exemple: "**ACHETER** - Tendance haussière forte"`;
 
-IMPORTANT: Réponds en UNE SEULE PHRASE courte (max 100 caractères) avec:
-- Le verbe d'action en gras: **ACHETER**, **VENDRE**, **CONSERVER** ou **SURVEILLER**
-- Une raison très brève
-
-Exemple: "**ACHETER** - Forte tendance haussière confirmée"
-Exemple: "**SURVEILLER** - Volatilité importante, attendre confirmation"
-
-Réponds UNIQUEMENT avec cette phrase, rien d'autre.`;
-
-        const result = await model.generateContent(prompt);
+        // Timeout de 10 secondes pour éviter les blocages
+        const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Timeout API Gemini')), 10000)
+        );
+        
+        const resultPromise = model.generateContent(prompt);
+        const result = await Promise.race([resultPromise, timeoutPromise]);
+        
         const response = await result.response;
         const analysis = response.text().trim();
+        
+        // Vérifier que la réponse contient bien une recommandation
+        if (!analysis || analysis.length < 10) {
+            throw new Error('Réponse IA vide ou invalide');
+        }
         
         return {
             enabled: true,
