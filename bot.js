@@ -362,7 +362,8 @@ async function sendAutomaticAlerts(forceRun = false) {
         { symbol: 'TTWO', name: 'Take-Two Interactive' },
         { symbol: 'NVDA', name: 'NVIDIA' },
         { symbol: 'TSLA', name: 'Tesla' },
-        { symbol: 'AMZN', name: 'Amazon' }
+        { symbol: 'AMZN', name: 'Amazon' },
+        { symbol: 'AI', name: 'Air Liquide' }
     ];
     
     console.log(`\n📊 ========== CYCLE D'ANALYSE AUTOMATIQUE ==========`);
