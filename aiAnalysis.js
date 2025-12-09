@@ -66,9 +66,23 @@ Réponds UNIQUEMENT avec cette phrase, rien d'autre.`;
         
     } catch (error) {
         console.error(`❌ Erreur analyse IA pour ${symbol}:`, error.message);
+        console.error(`❌ Détails erreur:`, error);
+        
+        // Message plus descriptif selon le type d'erreur
+        let errorMsg = '➡️ **SURVEILLER** - ';
+        if (error.message.includes('API key')) {
+            errorMsg += 'Clé API Gemini invalide';
+        } else if (error.message.includes('quota')) {
+            errorMsg += 'Quota API dépassé, réessayez plus tard';
+        } else if (error.message.includes('network') || error.message.includes('ENOTFOUND')) {
+            errorMsg += 'Problème de connexion réseau';
+        } else {
+            errorMsg += `Erreur IA: ${error.message.substring(0, 50)}`;
+        }
+        
         return {
             enabled: false,
-            analysis: '➡️ **SURVEILLER** - Analyse IA temporairement indisponible'
+            analysis: errorMsg
         };
     }
 }
