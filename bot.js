@@ -181,7 +181,7 @@ client.once('ready', async () => {
     // Puis toutes les heures
     setInterval(async () => {
         await sendAutomaticAlerts();
-    }, 3600000); // 1 heure
+    }, 1800000); // 1 heure = 3600000
 });
 
 client.on('interactionCreate', async interaction => {
@@ -335,7 +335,6 @@ async function sendAutomaticAlerts(forceRun = false) {
             const embed = new EmbedBuilder()
                 .setColor(color)
                 .setTitle(`${emoji} ${stock.name} (${stock.symbol})`)
-                .setDescription(`Analyse automatique • ${stockData.name || stock.symbol}`)
                 .addFields(fields)
                 .setTimestamp()
                 .setFooter({ text: '🤖 Analyse IA Groq • Gratuit' });
