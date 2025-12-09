@@ -333,7 +333,7 @@ async function sendAutomaticAlerts(forceRun = false) {
                 .setDescription(`Analyse automatique • ${stockData.name || stock.symbol}`)
                 .addFields(fields)
                 .setTimestamp()
-                .setFooter({ text: '🤖 Analyse IA Google Gemini • Gratuit' });
+                .setFooter({ text: '🤖 Analyse IA Groq • Gratuit' });
             
             await channel.send({ embeds: [embed] });
             console.log(`✅ Alerte envoyée pour ${stock.symbol}`);

@@ -1,290 +1,249 @@
-# 🤖 Bot Discord Trading IA
+# 🤖 Bot Discord Trading avec IA
 
-Bot Discord intelligent qui fournit des **prédictions de trading** basées sur l'analyse technique et l'IA pour vous aider à prendre des décisions d'investissement sur **Trade Republic**.
+Bot Discord intelligent qui analyse automatiquement 6 actions toutes les heures et fournit des recommandations d'investissement personnalisées grâce à l'IA **Groq (Llama 3.1 70B)**.
 
 ## 🎯 Fonctionnalités
 
-- 📊 **Analyse technique complète** (RSI, MACD, Moyennes Mobiles)
-- 🔮 **Prédictions IA** sur les tendances futures
-- 💼 **Analyse de portefeuille** Trade Republic
-- 🏆 **Top 5 opportunités** du jour par secteur
-- 📈 **Watchlist personnalisée** avec alertes automatiques
-- ⏰ **Surveillance 24/7** des marchés
+- 📊 **Analyse automatique** de 6 actions toutes les heures (7h-23h)
+- 🤖 **IA Groq (Llama 3.1 70B)** pour des recommandations intelligentes en 1 phrase
+- 🏆 **Prix maximum historique** sur 5 ans pour chaque action
+- 📈 **Signaux de tendance** : Très Haussier, Haussier, Stable, Baissier, etc.
+- 🌙 **Mode nuit** : Pas d'alertes entre 23h et 7h (sauf commande manuelle)
+- 📝 **Logs Discord** avec mention automatique en cas d'erreur
+- ⚡ **Commande /test** pour déclencher une analyse immédiate
+- 🔄 **Retry automatique** : 3 tentatives si l'IA échoue
+- 📉 **Analyse de fallback** basique si l'IA est indisponible
 
-## ⚙️ Installation
+## 📋 Actions surveillées
 
-### Prérequis
+1. **URTH** - iShares MSCI World ETF
+2. **MCD** - McDonald's
+3. **TTWO** - Take-Two Interactive
+4. **NVDA** - NVIDIA
+5. **TSLA** - Tesla
+6. **AMZN** - Amazon
 
-- Node.js (version 16 ou supérieure)
-- Un compte Discord avec les permissions de créer un bot
-- Une clé API Finnhub (gratuite)
+## 🛠️ Technologies utilisées
 
-### Étape 1 : Créer le Bot Discord
+- **Node.js** v20.10.0
+- **Discord.js** v14.14.1 - Framework bot Discord
+- **Groq SDK** - IA Llama 3.1 70B (100% gratuit)
+- **Finnhub API** - Données boursières en temps réel
+- **Axios** - Requêtes HTTP
+- **Dotenv** - Gestion des variables d'environnement
 
-1. Allez sur [Discord Developer Portal](https://discord.com/developers/applications)
-2. Cliquez sur **"New Application"**
-3. Donnez un nom à votre bot (ex: "Trading AI Bot")
-4. Allez dans l'onglet **"Bot"**
-5. Cliquez sur **"Add Bot"**
-6. **Activez** les options suivantes dans "Privileged Gateway Intents":
-   - ✅ Presence Intent
-   - ✅ Server Members Intent
-   - ✅ Message Content Intent
-7. Copiez le **TOKEN** (gardez-le secret!)
-8. Allez dans l'onglet **"OAuth2" > "General"**
-9. Copiez votre **CLIENT ID**
+## 📦 Installation
 
-### Étape 2 : Inviter le Bot sur votre Serveur
+### 1. Cloner le projet
 
-1. Allez dans **"OAuth2" > "URL Generator"**
-2. Sélectionnez les **scopes**:
-   - ✅ bot
-   - ✅ applications.commands
-3. Sélectionnez les **permissions**:
-   - ✅ Send Messages
-   - ✅ Embed Links
-   - ✅ Read Message History
-   - ✅ Use Slash Commands
-4. Copiez l'URL générée et ouvrez-la dans votre navigateur
-5. Sélectionnez votre serveur et autorisez le bot
+```bash
+git clone https://github.com/DylanCOVAREL/BOT-DISCORD.git
+cd BOT-DISCORD
+```
 
-### Étape 3 : Obtenir la Clé API Finnhub
+### 2. Installer les dépendances
 
-1. Inscrivez-vous sur [Finnhub.io](https://finnhub.io/register) (gratuit)
-2. Confirmez votre email
-3. Copiez votre **clé API** depuis le dashboard
+```bash
+npm install
+```
 
-### Étape 4 : Configuration
+### 3. Configurer les variables d'environnement
 
-1. **Clonez ou téléchargez ce projet**
+Créez un fichier `.env` à la racine du projet :
 
-2. **Installez les dépendances:**
-   ```powershell
-   cd BOT_DISCORD
-   npm install
-   ```
+```env
+# Bot Discord
+DISCORD_TOKEN=votre_token_discord
+CLIENT_ID=votre_client_id
 
-3. **Créez un fichier `.env`** à partir de `.env.example`:
-   ```powershell
-   Copy-Item .env.example .env
-   ```
+# API Finnhub (données boursières)
+FINNHUB_API_KEY=votre_clé_finnhub
 
-4. **Éditez le fichier `.env`** avec vos informations:
-   ```env
-   DISCORD_TOKEN=votre_token_discord
-   CLIENT_ID=votre_client_id
-   FINNHUB_API_KEY=votre_cle_finnhub
-   ALERT_CHANNEL_ID=id_du_canal_alertes
-   ```
+# Groq AI (Llama 3.1 70B - 100% GRATUIT)
+GEMINI_API_KEY=votre_clé_groq
 
-   Pour obtenir l'ID d'un canal Discord:
-   - Activez le "Mode Développeur" dans Discord (Paramètres > Avancés > Mode développeur)
-   - Clic droit sur un canal > Copier l'identifiant du salon
+# Canaux Discord
+ALERT_CHANNEL_ID=id_canal_alertes
+LOG_CHANNEL_ID=id_canal_logs
 
-### Étape 5 : Lancement
+# Admin
+ADMIN_USER_ID=votre_id_discord
+```
 
-```powershell
+### 4. Obtenir les clés API
+
+#### Discord Bot
+1. Allez sur https://discord.com/developers/applications
+2. Créez une application
+3. Dans **Bot**, copiez le **Token**
+4. Dans **OAuth2 > General**, copiez le **Client ID**
+5. Activez **Privileged Gateway Intents** (Server Members, Message Content)
+
+#### Finnhub API
+1. Allez sur https://finnhub.io/register
+2. Créez un compte gratuit
+3. Copiez votre **API Key**
+
+#### Groq AI (Recommandé)
+1. Allez sur https://console.groq.com
+2. Créez un compte gratuit (pas de CB requise)
+3. Dans **API Keys**, créez une clé
+4. Copiez la clé (format : `gsk_...`)
+
+📖 **Guide détaillé** : Voir `SETUP_GROQ.md`
+
+### 5. Lancer le bot
+
+```bash
+node bot.js
+```
+
+Ou en mode développement avec redémarrage automatique :
+
+```bash
 npm start
 ```
 
-Vous devriez voir: `✅ Bot connecté en tant que [NomDuBot]#1234`
+## 🚀 Déploiement (24/7 gratuit)
 
-## 📖 Commandes
+Le bot peut être hébergé gratuitement sur **Railway.app** :
 
-### `/analyze [symbol]`
-Analyse technique complète d'une action
+1. **Créez un compte** sur https://railway.app
+2. **Connectez votre repo GitHub**
+3. **Ajoutez les variables d'environnement**
+4. **Déployez** !
 
-**Exemple:**
+📖 **Guide détaillé** : Voir `DEPLOY_RENDER.md`
+
+## 🎮 Commandes Discord
+
+- `/test` - Lance immédiatement un cycle d'analyse (bypass le mode nuit)
+
+## 📊 Format des alertes
+
+Chaque action affiche :
+
 ```
-/analyze AAPL
-/analyze TSLA
-/analyze NVDA
-```
+📈 NVIDIA (NVDA)
+Analyse automatique • NVIDIA Corporation
 
-**Informations fournies:**
-- Prix actuel et variation
-- Plus haut/bas du jour
-- RSI (Relative Strength Index)
-- MACD (Moving Average Convergence Divergence)
-- Recommandation d'achat/vente
+💰 Prix Actuel: $875.32
+📊 Variation 24h: +2.45%
+🎯 Signal: 📈 Haussier
+🏆 Plus Haut (5 ans): $950.12 (-7.87%)
+🤖 Recommandation IA: **ACHETER** - Forte tendance haussière sur l'IA
 
----
-
-### `/predict [symbol]`
-Prédiction IA sur l'évolution future d'une action
-
-**Exemple:**
-```
-/predict AAPL
-```
-
-**Informations fournies:**
-- Prédiction à 7 jours
-- Prédiction à 30 jours
-- Niveau de confiance
-- Volatilité
-- Conseils d'investissement
-- Points d'entrée recommandés
-
----
-
-### `/portfolio [actions]`
-Analyse complète de votre portefeuille Trade Republic
-
-**Exemple:**
-```
-/portfolio AAPL,TSLA,NVDA,MSFT
+🤖 Analyse IA Groq • Gratuit
 ```
 
-**Informations fournies:**
-- Analyse de chaque action
-- Recommandations personnalisées
-- Vue d'ensemble du portefeuille
+## 🌙 Mode Nuit
 
----
+- **Actif** : 23h → 7h (heure locale du serveur)
+- **Désactivé** : Automatiquement de 7h → 23h
+- **Bypass** : La commande `/test` fonctionne toujours
 
-### `/watchlist [symbol]`
-Ajoute une action à votre watchlist personnelle
+## 📈 Signaux de tendance
 
-**Exemple:**
-```
-/watchlist AAPL
-```
+| Signal | Variation | Signification |
+|--------|-----------|---------------|
+| 🚀 Très Haussier | +5% et plus | Forte hausse confirmée |
+| 📈 Haussier | +2% à +5% | Tendance positive |
+| ➕ Légèrement Positif | +0.5% à +2% | Petite hausse |
+| ⚪ Stable | -0.5% à +0.5% | Pas de mouvement |
+| ➖ Légèrement Négatif | -0.5% à -2% | Petite baisse |
+| 📉 Baissier | -2% à -5% | Tendance négative |
+| 💥 Très Baissier | -5% et moins | Forte chute |
 
-Le bot surveillera cette action et vous enverra des alertes automatiques.
+## 🤖 Système d'IA
 
----
+### Groq (Llama 3.1 70B)
+- ✅ **Ultra rapide** : <1 seconde par analyse
+- ✅ **100% gratuit** : 14 400 requêtes/jour
+- ✅ **Très stable** : 99.9% uptime
+- ✅ **Intelligent** : Meilleur modèle open-source
 
-### `/top [market]`
-Top 5 des meilleures opportunités du jour
+### Fallback automatique
+Si l'IA échoue après 3 tentatives, analyse basique :
+- **+3%** → ACHETER
+- **+1%** → CONSERVER (positif)
+- **-1%** → SURVEILLER
+- **-3%** → VENDRE
 
-**Marchés disponibles:**
-- `tech` - Technologie
-- `energy` - Énergie
-- `finance` - Finance
-- `all` - Tous les secteurs (par défaut)
-
-**Exemple:**
-```
-/top tech
-/top
-```
-
-## 🎓 Comprendre les Indicateurs
-
-### RSI (Relative Strength Index)
-- **< 30** : Action survendue → Opportunité d'achat
-- **30-70** : Zone neutre
-- **> 70** : Action surachetée → Prudence
-
-### MACD
-- **Positif** : Momentum haussier
-- **Négatif** : Momentum baissier
-- **Croisement** : Signal d'achat/vente
-
-### Moyennes Mobiles
-- **Prix > SMA20 > SMA50** : Tendance haussière forte
-- **Prix < SMA20 < SMA50** : Tendance baissière
-
-## 🚨 Alertes Automatiques
-
-Le bot surveille automatiquement vos actions en watchlist toutes les heures et vous alerte en cas de:
-- 📈 Signal d'achat fort
-- 📉 Signal de vente
-- ⚠️ Volatilité inhabituelle
-- 🎯 Prix cible atteint
-
-## ⚠️ Avertissements Importants
-
-> **Ce bot ne fournit PAS de conseils financiers professionnels.**
-> 
-> Les prédictions sont basées sur l'analyse technique et des algorithmes, mais le marché reste imprévisible.
-> 
-> **Recommandations:**
-> - ✅ Faites vos propres recherches (DYOR)
-> - ✅ Ne jamais investir plus que ce que vous pouvez perdre
-> - ✅ Diversifiez votre portefeuille
-> - ✅ Consultez un conseiller financier pour des décisions importantes
-> - ❌ N'investissez jamais basé uniquement sur les prédictions d'un bot
-
-## 🛠️ Développement
-
-### Mode Développement
-
-```powershell
-npm run dev
-```
-
-Utilise `nodemon` pour redémarrer automatiquement à chaque modification.
-
-### Structure du Projet
+## 🔧 Structure du projet
 
 ```
 BOT_DISCORD/
 ├── bot.js              # Fichier principal du bot
-├── analysis.js         # Module d'analyse technique et IA
-├── package.json        # Dépendances
-├── .env               # Configuration (ne pas partager!)
-├── .env.example       # Exemple de configuration
-└── README.md          # Documentation
+├── aiAnalysis.js       # Intégration Groq AI
+├── package.json        # Dépendances Node.js
+├── .env                # Variables d'environnement (à créer)
+├── .env.example        # Template pour .env
+├── .gitignore          # Fichiers ignorés par Git
+├── Procfile            # Configuration déploiement
+├── README.md           # Ce fichier
+├── SETUP_GROQ.md       # Guide configuration Groq
+├── DEPLOY_RENDER.md    # Guide déploiement gratuit
+└── GLITCH_SETUP.md     # Alternative hébergement
 ```
 
-## 📊 APIs Utilisées
+## 📝 Logs Discord
 
-- **Discord.js v14** - Framework bot Discord
-- **Finnhub API** - Données de marché en temps réel (gratuit)
+Le bot envoie des logs détaillés dans un canal dédié :
 
-### Limites API Finnhub (plan gratuit)
-- 60 requêtes/minute
-- Données retardées de ~15 minutes pour certaines actions
+- ℹ️ **Info** : Démarrage, cycles d'analyse
+- ✅ **Succès** : Connexion, commandes enregistrées
+- ⚠️ **Avertissement** : Mode nuit actif
+- ❌ **Erreur** : Problèmes API, erreurs critiques (mentionne l'admin)
 
-Pour des données plus précises, considérez un upgrade vers Finnhub Premium.
+## 🔒 Sécurité
 
-## 🐛 Résolution de Problèmes
+- ✅ Toutes les clés API sont dans `.env` (pas versionné)
+- ✅ `.gitignore` configuré pour protéger les secrets
+- ✅ Pas de clés hardcodées dans le code
+- ✅ Template `.env.example` fourni
 
-### Le bot ne se connecte pas
+## 🆘 Dépannage
+
+### Le bot ne démarre pas
+- Vérifiez que toutes les variables dans `.env` sont renseignées
+- Vérifiez que Node.js v18+ est installé : `node --version`
+- Réinstallez les dépendances : `npm install`
+
+### L'IA ne fonctionne pas
+- Vérifiez votre clé Groq (doit commencer par `gsk_`)
+- Consultez le guide `SETUP_GROQ.md`
+- Vérifiez les logs dans le canal Discord
+
+### Le bot est hors ligne sur Discord
+- Activez **Privileged Gateway Intents** dans Discord Developer Portal
 - Vérifiez que le `DISCORD_TOKEN` est correct
-- Assurez-vous que les "Privileged Gateway Intents" sont activés
+- Redémarrez le bot
 
-### Commandes slash non visibles
-- Attendez quelques minutes (peut prendre jusqu'à 1h)
-- Vérifiez que le `CLIENT_ID` est correct
-- Réinvitez le bot avec les bonnes permissions
+### Erreurs "404 NotFound"
+- Ancienne erreur Gemini, maintenant résolue avec Groq
+- Assurez-vous d'avoir installé `groq-sdk` : `npm install`
 
-### Erreurs API Finnhub
-- Vérifiez votre clé API
-- Assurez-vous de ne pas dépasser les limites de requêtes
-- Certains symboles peuvent ne pas être disponibles
+## 📚 Documentation complémentaire
 
-### Symboles d'actions
-
-Utilisez toujours les symboles **US** (ex: AAPL, TSLA). Pour les actions européennes disponibles sur Trade Republic:
-- **SAP** → `SAP` (Frankfurt) ou `SAP.DE`
-- **BMW** → `BMW.DE`
-- **Siemens** → `SIE.DE`
-
-Consultez [Finnhub Stocks](https://finnhub.io/docs/api/stock-symbols) pour la liste complète.
-
-## 📝 TODO / Améliorations Futures
-
-- [ ] Intégration API Trade Republic (si disponible)
-- [ ] Support des cryptomonnaies
-- [ ] Backtesting des prédictions
-- [ ] Dashboard web pour visualisation
-- [ ] Alertes par DM personnalisées
-- [ ] Support multi-langues
-- [ ] Machine Learning avancé pour prédictions
-
-## 📄 Licence
-
-MIT - Libre d'utilisation et de modification
+- [Configuration Groq AI](SETUP_GROQ.md)
+- [Déploiement gratuit](DEPLOY_RENDER.md)
+- [Alternative Glitch](GLITCH_SETUP.md)
 
 ## 🤝 Contribution
 
-Les contributions sont les bienvenues! N'hésitez pas à ouvrir une issue ou un pull request.
+Les contributions sont les bienvenues ! N'hésitez pas à :
+- Signaler des bugs
+- Proposer des nouvelles fonctionnalités
+- Soumettre des Pull Requests
+
+## 📄 Licence
+
+MIT License - Libre d'utilisation et de modification
+
+## 👨‍💻 Auteur
+
+Créé pour automatiser l'analyse d'actions sur Trade Republic avec l'aide de l'IA.
 
 ---
 
-**Bon trading! 📈💰**
-
-*N'oubliez pas: Le meilleur investissement est celui que vous comprenez.*
+**⚡ Propulsé par Groq (Llama 3.1 70B) - L'IA la plus rapide du marché !**
