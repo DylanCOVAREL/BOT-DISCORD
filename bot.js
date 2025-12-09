@@ -8,8 +8,12 @@ dotenv.config();
 // Keep-Alive pour Glitch.com (empêche la mise en veille)
 const http = require('http');
 http.createServer((req, res) => {
-  res.writeHead(200);
-  res.end('🤖 Bot Trading Discord is alive!');
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  if (req.method === 'HEAD' || req.method === 'GET') {
+    res.end('🤖 Bot Trading Discord is alive!');
+  } else {
+    res.end();
+  }
 }).listen(3000);
 console.log('🌐 Serveur HTTP actif sur le port 3000 (Keep-Alive Glitch)');
 
