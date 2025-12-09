@@ -367,7 +367,7 @@ async function sendAutomaticAlerts(forceRun = false) {
         { symbol: 'NVDA', name: 'NVIDIA' },
         { symbol: 'TSLA', name: 'Tesla' },
         { symbol: 'AMZN', name: 'Amazon' },
-        { symbol: 'AI', name: 'Air Liquide' }
+        { symbol: 'AI.PA', name: 'Air Liquide' }
     ];
     
     console.log(`\n📊 ========== CYCLE D'ANALYSE AUTOMATIQUE ==========`);
