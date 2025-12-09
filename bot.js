@@ -269,10 +269,13 @@ async function sendAutomaticAlerts(forceRun = false) {
             
             // Analyse avec Google Gemini AI (GRATUIT)
             const aiAnalysis = await analyzeWithAI(stockData, stock.symbol, stock.name);
+            console.log(`🤖 IA activée: ${aiAnalysis.enabled}, Analyse: ${aiAnalysis.analysis.substring(0, 50)}...`);
+            
+            // Utiliser l'analyse IA
+            const recommendation = aiAnalysis.analysis;
             
             // Analyse simplifiée basée sur le changement de prix
             let signal = '🟡 Neutre';
-            let recommendation = aiAnalysis.enabled ? aiAnalysis.analysis : '➡️ **SURVEILLER** - Analyser plus en détail avant d\'agir';
             let color = '#FFD700';
             
             if (changePercent > 3) {
@@ -314,7 +317,7 @@ async function sendAutomaticAlerts(forceRun = false) {
             }
             
             fields.push({ 
-                name: aiAnalysis.enabled ? '🤖 Analyse IA Gemini' : '💡 Recommandation', 
+                name: '🤖 Recommandation IA', 
                 value: recommendation 
             });
             
@@ -324,7 +327,7 @@ async function sendAutomaticAlerts(forceRun = false) {
                 .setDescription(`Analyse automatique • ${stockData.name || stock.symbol}`)
                 .addFields(fields)
                 .setTimestamp()
-                .setFooter({ text: aiAnalysis.enabled ? '🤖 Analyse IA Google Gemini • Gratuit' : '🤖 Alerte automatique • Cycle toutes les heures' });
+                .setFooter({ text: '🤖 Analyse IA Google Gemini • Gratuit' });
             
             await channel.send({ embeds: [embed] });
             console.log(`✅ Alerte envoyée pour ${stock.symbol}`);
