@@ -275,21 +275,27 @@ async function sendAutomaticAlerts(forceRun = false) {
             const recommendation = aiAnalysis.analysis;
             
             // Analyse simplifiée basée sur le changement de prix
-            let signal = '🟡 Neutre';
+            let signal = '⚪ Stable';
             let color = '#FFD700';
             
-            if (changePercent > 3) {
-                signal = '🟢 Achat Fort';
+            if (changePercent > 5) {
+                signal = '🚀 Très Haussier';
                 color = '#00ff00';
-            } else if (changePercent > 1) {
-                signal = '🟢 Achat';
+            } else if (changePercent > 2) {
+                signal = '📈 Haussier';
                 color = '#90EE90';
-            } else if (changePercent < -3) {
-                signal = '🔴 Vente';
+            } else if (changePercent > 0.5) {
+                signal = '➕ Légèrement Positif';
+                color = '#B8E6B8';
+            } else if (changePercent < -5) {
+                signal = '💥 Très Baissier';
                 color = '#ff0000';
-            } else if (changePercent < -1) {
-                signal = '🟠 Attention';
+            } else if (changePercent < -2) {
+                signal = '📉 Baissier';
                 color = '#FFA500';
+            } else if (changePercent < -0.5) {
+                signal = '➖ Légèrement Négatif';
+                color = '#FFD580';
             }
             
             const fields = [
