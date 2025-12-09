@@ -1,5 +1,5 @@
 /**
- * Module d'analyse IA avec Groq (100% GRATUIT)
+ * Module d'analyse IA avec Groq (100% GRATUIT - Llama 3.1 70B)
  */
 
 const Groq = require('groq-sdk');
@@ -24,20 +24,35 @@ function initializeGemini(apiKey) {
 }
 
 /**
- * Analyse IA d'une action avec Google Gemini
+ * Analyse IA d'une action avec Groq - Llama 3.1 70B
  */
-async function analyzeWithAI(stockData, symbol, stockName) {
-    if (!model) {
+async function analyzeWithAI(stockData, symbol, stockName, retryCount = 0) {
+    if (!groq) {
+        // Fallback automatique si Groq n'est pas configuré
+        const changePercent = parseFloat(((stockData.c - stockData.pc) / stockData.pc * 100).toFixed(2));
+        let fallback = '';
+        
+        if (changePercent > 3) {
+            fallback = '**ACHETER** - Forte hausse (+' + changePercent + '%)';
+        } else if (changePercent > 1) {
+            fallback = '**CONSERVER** - Tendance positive (+' + changePercent + '%)';
+        } else if (changePercent < -3) {
+            fallback = '**VENDRE** - Forte baisse (' + changePercent + '%)';
+        } else if (changePercent < -1) {
+            fallback = '**SURVEILLER** - Baisse modérée (' + changePercent + '%)';
+        } else {
+            fallback = '**CONSERVER** - Prix stable (' + changePercent + '%)';
+        }
+        
         return {
             enabled: false,
-            analysis: '➡️ **SURVEILLER** - Analyser plus en détail avant d\'agir'
+            analysis: fallback
         };
     }
     
     try {
         const changePercent = ((stockData.c - stockData.pc) / stockData.pc * 100).toFixed(2);
         
-        // Prompt ultra-simplifié pour réduire les erreurs API
         const prompt = `Action: ${stockName} (${symbol})
 Prix: $${stockData.c}
 Variation: ${changePercent}%
@@ -45,21 +60,29 @@ Variation: ${changePercent}%
 Recommande en 1 phrase courte avec: **ACHETER**, **VENDRE**, **CONSERVER** ou **SURVEILLER** suivi de la raison.
 Exemple: "**ACHETER** - Tendance haussière forte"`;
 
-        // Timeout de 10 secondes pour éviter les blocages
-        const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Timeout API Gemini')), 10000)
-        );
+        const completion = await groq.chat.completions.create({
+            messages: [
+                {
+                    role: "system",
+                    content: "Tu es un expert trader. Réponds en 1 phrase courte et directe avec une action en gras (**ACHETER**, **VENDRE**, **CONSERVER**, **SURVEILLER**) suivie d'une raison brève."
+                },
+                {
+                    role: "user",
+                    content: prompt
+                }
+            ],
+            model: "llama-3.1-70b-versatile",
+            temperature: 0.5,
+            max_tokens: 100
+        });
         
-        const resultPromise = model.generateContent(prompt);
-        const result = await Promise.race([resultPromise, timeoutPromise]);
+        const analysis = completion.choices[0]?.message?.content?.trim();
         
-        const response = await result.response;
-        const analysis = response.text().trim();
-        
-        // Vérifier que la réponse contient bien une recommandation
         if (!analysis || analysis.length < 10) {
-            throw new Error('Réponse IA vide ou invalide');
+            throw new Error('Réponse vide');
         }
+        
+        console.log(`✅ Analyse IA Groq réussie pour ${symbol}`);
         
         return {
             enabled: true,
@@ -67,114 +90,43 @@ Exemple: "**ACHETER** - Tendance haussière forte"`;
         };
         
     } catch (error) {
-        console.error(`❌ Erreur analyse IA pour ${symbol}:`, error.message);
-        console.error(`❌ Détails erreur:`, error);
+        console.error(`❌ Erreur IA Groq ${symbol} (tentative ${retryCount + 1}/3):`, error.message);
         
-        // Message plus descriptif selon le type d'erreur
-        let errorMsg = '➡️ **SURVEILLER** - ';
-        if (error.message.includes('API key')) {
-            errorMsg += 'Clé API Gemini invalide';
-        } else if (error.message.includes('quota')) {
-            errorMsg += 'Quota API dépassé, réessayez plus tard';
-        } else if (error.message.includes('network') || error.message.includes('ENOTFOUND')) {
-            errorMsg += 'Problème de connexion réseau';
-        } else {
-            errorMsg += `Erreur IA: ${error.message.substring(0, 50)}`;
+        // Retry automatique (max 3 fois)
+        if (retryCount < 2) {
+            console.log(`🔄 Nouvelle tentative Groq pour ${symbol}...`);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            return analyzeWithAI(stockData, symbol, stockName, retryCount + 1);
         }
+        
+        // Après 3 échecs : analyse de fallback basique
+        const changePercent = parseFloat(((stockData.c - stockData.pc) / stockData.pc * 100).toFixed(2));
+        let fallback = '';
+        
+        if (changePercent > 3) {
+            fallback = '**ACHETER** - Forte hausse (+' + changePercent + '%)';
+        } else if (changePercent > 1) {
+            fallback = '**CONSERVER** - Tendance positive (+' + changePercent + '%)';
+        } else if (changePercent < -3) {
+            fallback = '**VENDRE** - Forte baisse (' + changePercent + '%)';
+        } else if (changePercent < -1) {
+            fallback = '**SURVEILLER** - Baisse modérée (' + changePercent + '%)';
+        } else {
+            fallback = '**CONSERVER** - Prix stable (' + changePercent + '%)';
+        }
+        
+        console.log(`⚠️ Utilisation analyse automatique pour ${symbol}: ${fallback}`);
         
         return {
             enabled: false,
-            analysis: errorMsg
+            analysis: fallback
         };
     }
 }
 
-/**
- * Analyse IA approfondie avec contexte de marché
- */
-async function deepAnalysisWithAI(stockData, historicalData, symbol, stockName) {
-    if (!model) {
-        return null;
-    }
-    
-    try {
-        const changePercent = ((stockData.c - stockData.pc) / stockData.pc * 100).toFixed(2);
-        
-        // Calculer volatilité simple
-        const closes = historicalData?.c || [];
-        let volatilityInfo = 'N/A';
-        if (closes.length > 5) {
-            const recentCloses = closes.slice(-5);
-            const avgPrice = recentCloses.reduce((a, b) => a + b, 0) / recentCloses.length;
-            const variance = recentCloses.reduce((sum, price) => sum + Math.pow(price - avgPrice, 2), 0) / recentCloses.length;
-            const volatility = Math.sqrt(variance);
-            volatilityInfo = `${((volatility / avgPrice) * 100).toFixed(2)}%`;
-        }
-        
-        const prompt = `Analyse technique approfondie en tant qu'expert trader:
-
-**${stockName} (${symbol})**
-Prix: $${stockData.c} | Variation: ${changePercent}% | Volatilité: ${volatilityInfo}
-Range jour: $${stockData.l} - $${stockData.h}
-
-Fournis une analyse structurée:
-1. **Tendance**: Haussière/Baissière/Latérale et pourquoi
-2. **Signal**: Achat/Vente/Neutre avec niveau de conviction (1-5)
-3. **Stratégie**: Point d'entrée optimal et stop-loss recommandé
-4. **Horizon**: Court terme (1-7j) ou moyen terme (1 mois)
-5. **Risque**: Faible/Moyen/Élevé
-
-Maximum 6 lignes. Sois précis et chiffré quand possible.`;
-
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        
-        return response.text().trim();
-        
-    } catch (error) {
-        console.error('❌ Erreur deep analysis:', error.message);
-        return null;
-    }
-}
-
-/**
- * Génère une prédiction de prix avec l'IA
- */
-async function predictWithAI(stockData, historicalData, symbol) {
-    if (!model) {
-        return null;
-    }
-    
-    try {
-        const closes = historicalData?.c || [];
-        if (closes.length < 10) return null;
-        
-        const recentPrices = closes.slice(-10).map(p => p.toFixed(2)).join(', ');
-        const currentPrice = stockData.c;
-        
-        const prompt = `En tant qu'analyste quantitatif, prédis l'évolution de ${symbol}:
-
-Prix actuel: $${currentPrice}
-10 derniers jours: ${recentPrices}
-
-Donne une prédiction concise:
-- Prix estimé dans 7 jours (avec fourchette min-max)
-- Prix estimé dans 30 jours (avec fourchette min-max)
-- Niveau de confiance (%)
-- Principal facteur de risque
-
-Format court: 3-4 lignes maximum. Sois réaliste et prudent.`;
-
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        
-        return response.text().trim();
-        
-    } catch (error) {
-        console.error('❌ Erreur prédiction IA:', error.message);
-        return null;
-    }
-}
+// Fonctions non utilisées actuellement (pour évolution future)
+async function deepAnalysisWithAI() { return null; }
+async function predictWithAI() { return null; }
 
 module.exports = {
     initializeGemini,
