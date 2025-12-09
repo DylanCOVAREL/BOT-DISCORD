@@ -140,7 +140,7 @@ async function getHistoricalData(symbol, days = 30) {
     }
 }
 
-client.once('ready', () => {
+client.once('ready', async () => {
     console.log(`✅ Bot connecté en tant que ${client.user.tag}`);
     sendLog(`Bot connecté en tant que **${client.user.tag}**`, 'start');
     
