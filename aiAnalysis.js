@@ -16,7 +16,7 @@ function initializeGemini(apiKey) {
     
     try {
         genAI = new GoogleGenerativeAI(apiKey);
-        model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+        model = genAI.getGenerativeModel({ model: 'gemma-3-12b' });
         console.log('✅ Google Gemini AI initialisé');
         return true;
     } catch (error) {
