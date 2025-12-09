@@ -174,6 +174,11 @@ client.once('ready', () => {
     // 🔥 ALERTES AUTOMATIQUES TOUTES LES HEURES 🔥
     console.log('🤖 Système d\'alertes automatiques activé - Envoi toutes les heures');
     sendLog('🤖 Système d\'alertes automatiques activé - Cycle toutes les heures', 'info');
+    
+    // Première analyse immédiate au démarrage
+    await sendAutomaticAlerts();
+    
+    // Puis toutes les heures
     setInterval(async () => {
         await sendAutomaticAlerts();
     }, 3600000); // 1 heure
