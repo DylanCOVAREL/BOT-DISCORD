@@ -101,21 +101,24 @@ async function getStockData(symbol) {
 // Fonction pour récupérer le prix maximum historique (All-Time High)
 async function getAllTimeHigh(symbol) {
     try {
-        // Récupérer les données depuis le début de l'action (10 ans en arrière)
+        // Récupérer 5 ans de données (max pour Finnhub gratuit)
         const to = Math.floor(Date.now() / 1000);
-        const from = to - (3650 * 24 * 60 * 60); // 10 ans
+        const from = to - (1825 * 24 * 60 * 60); // 5 ans
         
         const response = await axios.get(
-            `https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=D&from=${from}&to=${to}&token=${FINNHUB_API_KEY}`
+            `https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=W&from=${from}&to=${to}&token=${FINNHUB_API_KEY}`
         );
         
-        if (response.data && response.data.h && response.data.h.length > 0) {
+        if (response.data && response.data.h && response.data.h.length > 0 && response.data.s === 'ok') {
             const maxPrice = Math.max(...response.data.h);
+            console.log(`✅ ATH trouvé pour ${symbol}: $${maxPrice.toFixed(2)}`);
             return maxPrice;
         }
+        
+        console.log(`⚠️ Pas de données ATH pour ${symbol}, utilisation du plus haut du jour`);
         return null;
     } catch (error) {
-        console.error(`Erreur récupération ATH pour ${symbol}:`, error.message);
+        console.error(`❌ Erreur récupération ATH pour ${symbol}:`, error.message);
         return null;
     }
 }
@@ -294,15 +297,22 @@ async function sendAutomaticAlerts(forceRun = false) {
                 { name: '📉 Plus Bas (jour)', value: `$${stockData.l}`, inline: true }
             ];
             
-            // Ajouter le ATH si disponible
-            if (ath) {
+            // Toujours afficher le ATH (ou le plus haut du jour si indisponible)
+            if (ath && ath > stockData.h) {
                 fields.push({ 
-                    name: '🏆 Plus Haut Historique', 
+                    name: '🏆 Plus Haut Historique (5 ans)', 
                     value: `$${ath.toFixed(2)} (${distanceFromATH}%)`, 
                     inline: true 
                 });
             } else {
-                fields.push({ name: '🔒 Clôture Préc.', value: `$${stockData.pc}`, inline: true });
+                // Fallback: utiliser le plus haut du jour
+                const dayHigh = stockData.h;
+                const distanceFromDayHigh = (((stockData.c - dayHigh) / dayHigh) * 100).toFixed(2);
+                fields.push({ 
+                    name: '🏆 Plus Haut (5 ans)', 
+                    value: ath ? `$${ath.toFixed(2)} (${distanceFromATH}%)` : `$${dayHigh.toFixed(2)} (${distanceFromDayHigh}%)`, 
+                    inline: true 
+                });
             }
             
             fields.push({ 
