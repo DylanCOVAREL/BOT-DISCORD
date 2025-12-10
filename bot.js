@@ -448,8 +448,11 @@ async function sendAutomaticAlerts(forceRun = false) {
             // Utiliser la couleur de la recommandation intelligente
             const color = smartReco.color;
             
+            // Conversion USD vers EUR (taux approximatif 1 USD = 0.92 EUR)
+            const priceEUR = (stockData.c * 0.92).toFixed(2);
+            
             const fields = [
-                { name: '💰 Prix Actuel', value: `$${stockData.c}`, inline: true },
+                { name: '💰 Prix Actuel', value: `$${stockData.c} (${priceEUR}€)`, inline: true },
                 { name: '📊 Variation 24h', value: `${changePercent}%`, inline: true },
                 { name: '🎯 Signal 24h', value: signal, inline: true },
                 { name: `${trendData.emoji} Tendance 6 mois`, value: trendData.trend, inline: true },
@@ -457,13 +460,7 @@ async function sendAutomaticAlerts(forceRun = false) {
                 { name: '🏆 Distance ATH', value: ath ? `${distanceFromATH}%` : 'N/A', inline: true }
             ];
             
-            // Ajouter la recommandation intelligente
-            fields.push({ 
-                name: `${smartReco.emoji} RECOMMANDATION INTELLIGENTE`, 
-                value: `**${smartReco.recommendation}**`
-            });
-            
-            // Optionnel: ajouter l'analyse IA si disponible
+            // Ajouter l'analyse IA si disponible
             if (aiAnalysis.enabled && aiAnalysis.analysis) {
                 fields.push({ 
                     name: '🤖 Conseil IA Timing', 
