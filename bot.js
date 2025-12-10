@@ -361,8 +361,8 @@ async function sendAutomaticAlerts(forceRun = false) {
     const now = new Date();
     const hour = now.getHours();
     
-    // Bloquer les alertes automatiques entre 23h et 7h (sauf si forceRun = true pour /test)
-    if (!forceRun && (hour >= 23 || hour < 7)) {
+    // Bloquer les alertes automatiques entre 23h et 6h (sauf si forceRun = true pour /test)
+    if (!forceRun && (hour >= 23 || hour < 6)) {
         console.log(`🌙 Mode nuit activé (${hour}h) - Alertes automatiques désactivées jusqu'à 7h`);
         sendLog(`🌙 Alertes automatiques ignorées (${hour}h) - Mode nuit actif`, 'info');
         return;
