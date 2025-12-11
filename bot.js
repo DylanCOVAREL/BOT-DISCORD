@@ -82,6 +82,17 @@ const commands = [
         .setDescription('🧪 Lance immédiatement un cycle d\'analyse (pour tests)')
 ].map(command => command.toJSON());
 
+// Fonction pour récupérer le taux de change USD/EUR en temps réel
+async function getUSDtoEURRate() {
+    try {
+        const quote = await yahooFinance.quote('EURUSD=X');
+        return quote.regularMarketPrice; // Taux EUR/USD actuel
+    } catch (error) {
+        console.error('Erreur récupération taux EUR/USD:', error.message);
+        return 0.92; // Fallback si l'API échoue
+    }
+}
+
 // Fonction pour récupérer les données de marché
 async function getStockData(symbol) {
     try {
@@ -389,6 +400,10 @@ async function sendAutomaticAlerts(forceRun = false) {
     console.log(`\n📊 ========== CYCLE D'ANALYSE AUTOMATIQUE ==========`);
     sendLog('📊 Début du cycle d\'analyse automatique', 'info');
     
+    // Récupérer le taux USD/EUR une seule fois pour tout le cycle
+    const usdToEurRate = await getUSDtoEURRate();
+    console.log(`💱 Taux USD/EUR: ${usdToEurRate}`);
+    
     let successCount = 0;
     let errorCount = 0;
     
@@ -448,8 +463,8 @@ async function sendAutomaticAlerts(forceRun = false) {
             // Utiliser la couleur de la recommandation intelligente
             const color = smartReco.color;
             
-            // Conversion USD vers EUR (taux approximatif 1 USD = 0.92 EUR)
-            const priceEUR = (stockData.c * 0.92).toFixed(2);
+            // Conversion USD vers EUR avec taux en temps réel
+            const priceEUR = (stockData.c * usdToEurRate).toFixed(2);
             
             const fields = [
                 { name: '💰 Prix Actuel', value: `$${stockData.c} (${priceEUR}€)`, inline: true },
