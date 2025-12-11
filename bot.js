@@ -467,7 +467,7 @@ async function sendAutomaticAlerts(forceRun = false) {
             const priceEUR = (stockData.c * usdToEurRate).toFixed(2);
             
             const fields = [
-                { name: '💰 Prix Actuel', value: `$${stockData.c} (${priceEUR}€)`, inline: true },
+                { name: '💰 Prix Actuel', value: `€${stockData.c} (${priceEUR}$)`, inline: true },
                 { name: '📊 Variation 24h', value: `${changePercent}%`, inline: true },
                 { name: '🎯 Signal 24h', value: signal, inline: true },
                 { name: `${trendData.emoji} Tendance 6 mois`, value: trendData.trend, inline: true },
