@@ -327,16 +327,30 @@ client.once('ready', async () => {
     }
     
     // 🔥 ALERTES AUTOMATIQUES TOUTES LES HEURES 🔥
-    console.log('🤖 Système d\'alertes automatiques activé - Envoi toutes les heures');
-    sendLog('🤖 Système d\'alertes automatiques activé - Cycle toutes les heures', 'info');
+    console.log('🤖 Système d\'alertes automatiques activé - Envoi toutes les heures pile');
+    sendLog('🤖 Système d\'alertes automatiques activé - Cycle à chaque heure pile', 'info');
     
     // Première analyse immédiate au démarrage
     await sendAutomaticAlerts();
     
-    // Puis toutes les heures
-    setInterval(async () => {
-        await sendAutomaticAlerts();
-    }, 3600000); // 1 heure = 3600000
+    // Calculer le délai jusqu'à la prochaine heure pile
+    const now = new Date();
+    const minutesUntilNextHour = 60 - now.getMinutes();
+    const secondsUntilNextHour = 60 - now.getSeconds();
+    const msUntilNextHour = (minutesUntilNextHour - 1) * 60000 + secondsUntilNextHour * 1000;
+    
+    console.log(`⏰ Prochain cycle dans ${minutesUntilNextHour} minutes (à ${now.getHours() + 1}h00)`);
+    sendLog(`⏰ Prochain cycle programmé à ${(now.getHours() + 1) % 24}h00`, 'info');
+    
+    // Attendre jusqu'à la prochaine heure pile, puis lancer un cycle toutes les heures
+    setTimeout(() => {
+        sendAutomaticAlerts(); // Premier cycle à l'heure pile
+        
+        // Puis toutes les heures exactement
+        setInterval(async () => {
+            await sendAutomaticAlerts();
+        }, 3600000); // 1 heure = 3600000
+    }, msUntilNextHour);
 });
 
 client.on('interactionCreate', async interaction => {
