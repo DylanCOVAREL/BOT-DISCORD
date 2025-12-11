@@ -79,7 +79,14 @@ async function sendLog(message, type = 'info') {
 const commands = [
     new SlashCommandBuilder()
         .setName('test')
-        .setDescription('🧪 Lance immédiatement un cycle d\'analyse (pour tests)')
+        .setDescription('🧪 Lance immédiatement un cycle d\'analyse (pour tests)'),
+    new SlashCommandBuilder()
+        .setName('stock')
+        .setDescription('📊 Analyse une action spécifique')
+        .addStringOption(option =>
+            option.setName('symbol')
+                .setDescription('Symbole de l\'action (ex: NVDA, TSLA, AI.PA)')
+                .setRequired(true))
 ].map(command => command.toJSON());
 
 // Fonction pour récupérer le taux de change USD/EUR en temps réel
@@ -365,6 +372,9 @@ client.on('interactionCreate', async interaction => {
             case 'test':
                 await handleTest(interaction);
                 break;
+            case 'stock':
+                await handleStock(interaction);
+                break;
         }
     } catch (error) {
         console.error(`Erreur commande ${commandName}:`, error);
@@ -381,6 +391,98 @@ async function handleTest(interaction) {
     await sendAutomaticAlerts(true);
     
     await interaction.followUp('✅ Cycle d\'analyse terminé! Consultez le canal des alertes.');
+}
+
+async function handleStock(interaction) {
+    const symbol = interaction.options.getString('symbol').toUpperCase();
+    
+    await interaction.editReply(`📊 Analyse de **${symbol}** en cours...`);
+    
+    try {
+        // Récupérer le taux EUR/USD
+        const usdToEurRate = await getUSDtoEURRate();
+        
+        // Récupérer les données de l'action
+        const [stockData, ath, historicalData] = await Promise.all([
+            getStockData(symbol),
+            getAllTimeHigh(symbol),
+            getHistoricalData(symbol, 180)
+        ]);
+        
+        if (!stockData || !stockData.c) {
+            await interaction.editReply(`❌ Impossible de trouver l'action **${symbol}**. Vérifiez le symbole (ex: NVDA, TSLA, AAPL, AI.PA)`);
+            return;
+        }
+        
+        // Calculs techniques
+        const changePercent = ((stockData.c - stockData.pc) / stockData.pc * 100).toFixed(2);
+        const emoji = changePercent >= 0 ? '📈' : '📉';
+        
+        const trendData = calculateTrend(historicalData);
+        const volatilityData = calculateVolatility(historicalData);
+        const distanceFromATH = ath ? (((stockData.c - ath) / ath) * 100).toFixed(2) : -50;
+        
+        const smartReco = getSmartRecommendation(trendData, volatilityData, parseFloat(distanceFromATH), stockData.c);
+        
+        // Gestion de la devise
+        const currency = stockData.currency;
+        let priceDisplay, priceForAI;
+        if (currency === 'EUR') {
+            const priceInUSD = (stockData.c / usdToEurRate).toFixed(2);
+            priceDisplay = `${stockData.c.toFixed(2)}€ ($${priceInUSD})`;
+            priceForAI = stockData.c.toFixed(2);
+        } else if (currency === 'USD') {
+            const priceInEUR = (stockData.c * usdToEurRate).toFixed(2);
+            priceDisplay = `$${stockData.c.toFixed(2)} (${priceInEUR}€)`;
+            priceForAI = priceInEUR;
+        } else {
+            priceDisplay = `${stockData.c.toFixed(2)} ${currency}`;
+            priceForAI = stockData.c.toFixed(2);
+        }
+        
+        // Analyse IA
+        const aiAnalysis = await analyzeWithAI(stockData, symbol, stockData.name, trendData, volatilityData, distanceFromATH, priceForAI, currency);
+        
+        // Signal 24h
+        let signal = '⚪ Stable';
+        if (changePercent > 5) signal = '🚀 Très Haussier';
+        else if (changePercent > 2) signal = '📈 Haussier';
+        else if (changePercent > 0.5) signal = '➕ Légèrement Positif';
+        else if (changePercent < -5) signal = '💥 Très Baissier';
+        else if (changePercent < -2) signal = '📉 Baissier';
+        else if (changePercent < -0.5) signal = '➖ Légèrement Négatif';
+        
+        const color = smartReco.color;
+        
+        const fields = [
+            { name: '💰 Prix Actuel', value: priceDisplay, inline: true },
+            { name: '📊 Variation 24h', value: `${changePercent}%`, inline: true },
+            { name: '🎯 Signal 24h', value: signal, inline: true },
+            { name: `${trendData.emoji} Tendance 6 mois`, value: trendData.trend, inline: true },
+            { name: `${volatilityData.emoji} Volatilité`, value: `${volatilityData.level} (${volatilityData.volatility})`, inline: true },
+            { name: '🏆 Distance ATH', value: ath ? `${distanceFromATH}%` : 'N/A', inline: true }
+        ];
+        
+        if (aiAnalysis.enabled && aiAnalysis.analysis) {
+            fields.push({ 
+                name: '🤖 Conseil IA Timing', 
+                value: aiAnalysis.analysis
+            });
+        }
+        
+        const embed = new EmbedBuilder()
+            .setColor(color)
+            .setTitle(`${emoji} ${stockData.name} (${symbol})`)
+            .addFields(fields)
+            .setTimestamp()
+            .setFooter({ text: '📊 Analyse Technique 6 mois • 🤖 IA Groq' });
+        
+        await interaction.editReply({ content: '✅ Analyse terminée:', embeds: [embed] });
+        
+    } catch (error) {
+        console.error(`❌ Erreur analyse ${symbol}:`, error);
+        await interaction.editReply(`❌ Erreur lors de l'analyse de **${symbol}**: ${error.message}`);
+    }
 }
 
 async function sendAutomaticAlerts(forceRun = false) {
