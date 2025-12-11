@@ -26,7 +26,7 @@ function initializeGemini(apiKey) {
 /**
  * Analyse IA d'une action avec Groq - Llama 3.3 70B
  */
-async function analyzeWithAI(stockData, symbol, stockName, trendData, volatilityData, distanceFromATH, priceEUR, retryCount = 0) {
+async function analyzeWithAI(stockData, symbol, stockName, trendData, volatilityData, distanceFromATH, priceForAI, currency, retryCount = 0) {
     if (!groq) {
         // Fallback automatique si Groq n'est pas configuré
         const changePercent = parseFloat(((stockData.c - stockData.pc) / stockData.pc * 100).toFixed(2));
@@ -53,8 +53,18 @@ async function analyzeWithAI(stockData, symbol, stockName, trendData, volatility
     try {
         const changePercent = ((stockData.c - stockData.pc) / stockData.pc * 100).toFixed(2);
         
+        // Construire le message avec le bon format de prix selon la devise
+        let priceInfo;
+        if (currency === 'EUR') {
+            priceInfo = `Prix actuel: ${priceForAI}€`;
+        } else if (currency === 'USD') {
+            priceInfo = `Prix actuel: $${stockData.c.toFixed(2)} (${priceForAI}€)`;
+        } else {
+            priceInfo = `Prix actuel: ${stockData.c.toFixed(2)} ${currency}`;
+        }
+        
         const prompt = `Action: ${stockName} (${symbol})
-Prix actuel: ${priceEUR}€ ($${stockData.c})
+${priceInfo}
 Variation 24h: ${changePercent}%
 Tendance 6 mois: ${trendData.trend} (score: ${trendData.score}/2)
 Volatilité: ${volatilityData.level} (${volatilityData.volatility})
@@ -106,7 +116,7 @@ Réponds en 1 phrase courte avec le prix en EUROS.`;
         if (retryCount < 2) {
             console.log(`🔄 Nouvelle tentative Groq pour ${symbol}...`);
             await new Promise(resolve => setTimeout(resolve, 2000));
-            return analyzeWithAI(stockData, symbol, stockName, trendData, volatilityData, distanceFromATH, priceEUR, retryCount + 1);
+            return analyzeWithAI(stockData, symbol, stockName, trendData, volatilityData, distanceFromATH, priceForAI, currency, retryCount + 1);
         }
         
         // Après 3 échecs : analyse de fallback basique

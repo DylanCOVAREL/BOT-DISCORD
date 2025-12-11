@@ -104,7 +104,8 @@ async function getStockData(symbol) {
             pc: quote.regularMarketPreviousClose,  // Prix de clôture précédent
             h: quote.regularMarketDayHigh,         // Plus haut du jour
             l: quote.regularMarketDayLow,          // Plus bas du jour
-            name: quote.longName || quote.shortName || symbol
+            name: quote.longName || quote.shortName || symbol,
+            currency: quote.currency || 'USD'      // Devise du prix (EUR, USD, GBP, etc.)
         };
     } catch (error) {
         console.error(`Erreur lors de la récupération des données pour ${symbol}:`, error.message);
@@ -441,11 +442,30 @@ async function sendAutomaticAlerts(forceRun = false) {
             const smartReco = getSmartRecommendation(trendData, volatilityData, parseFloat(distanceFromATH), stockData.c);
             console.log(`💡 Recommandation: ${smartReco.recommendation}`);
             
-            // Conversion USD vers EUR avec taux en temps réel (pour l'IA)
-            const priceEUR = (stockData.c * usdToEurRate).toFixed(2);
+            // Récupérer la devise du prix depuis Yahoo Finance
+            const currency = stockData.currency; // EUR, USD, GBP, etc.
+            console.log(`💱 Devise: ${currency}`);
+            
+            // Convertir le prix pour l'affichage
+            let priceDisplay, priceForAI;
+            if (currency === 'EUR') {
+                // Prix déjà en EUR, convertir en USD pour info
+                const priceInUSD = (stockData.c / usdToEurRate).toFixed(2);
+                priceDisplay = `${stockData.c.toFixed(2)}€ ($${priceInUSD})`;
+                priceForAI = stockData.c.toFixed(2);
+            } else if (currency === 'USD') {
+                // Prix en USD, convertir en EUR pour info
+                const priceInEUR = (stockData.c * usdToEurRate).toFixed(2);
+                priceDisplay = `$${stockData.c.toFixed(2)} (${priceInEUR}€)`;
+                priceForAI = priceInEUR;
+            } else {
+                // Autre devise (GBP, JPY, etc.) : afficher telle quelle
+                priceDisplay = `${stockData.c.toFixed(2)} ${currency}`;
+                priceForAI = stockData.c.toFixed(2);
+            }
             
             // Analyse avec IA avec contexte complet (optionnel pour conseil timing)
-            const aiAnalysis = await analyzeWithAI(stockData, stock.symbol, stock.name, trendData, volatilityData, distanceFromATH, priceEUR);
+            const aiAnalysis = await analyzeWithAI(stockData, stock.symbol, stock.name, trendData, volatilityData, distanceFromATH, priceForAI, currency);
             console.log(`🤖 IA activée: ${aiAnalysis.enabled}`);
             
             // Définir signal et couleur basés sur variation 24h
@@ -468,7 +488,7 @@ async function sendAutomaticAlerts(forceRun = false) {
             const color = smartReco.color;
             
             const fields = [
-                { name: '💰 Prix Actuel', value: `$${stockData.c} (${priceEUR}€)`, inline: true },
+                { name: '💰 Prix Actuel', value: priceDisplay, inline: true },
                 { name: '📊 Variation 24h', value: `${changePercent}%`, inline: true },
                 { name: '🎯 Signal 24h', value: signal, inline: true },
                 { name: `${trendData.emoji} Tendance 6 mois`, value: trendData.trend, inline: true },
