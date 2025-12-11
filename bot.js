@@ -86,7 +86,8 @@ const commands = [
 async function getUSDtoEURRate() {
     try {
         const quote = await yahooFinance.quote('EURUSD=X');
-        return quote.regularMarketPrice; // Taux EUR/USD actuel
+        const eurUsdRate = quote.regularMarketPrice; // Taux EUR/USD (ex: 1.05 = 1 EUR = 1.05 USD)
+        return 1 / eurUsdRate; // Inverser pour obtenir USD/EUR (ex: 1/1.05 = 0.95 = 1 USD = 0.95 EUR)
     } catch (error) {
         console.error('Erreur récupération taux EUR/USD:', error.message);
         return 0.92; // Fallback si l'API échoue
@@ -440,8 +441,11 @@ async function sendAutomaticAlerts(forceRun = false) {
             const smartReco = getSmartRecommendation(trendData, volatilityData, parseFloat(distanceFromATH), stockData.c);
             console.log(`💡 Recommandation: ${smartReco.recommendation}`);
             
-            // Analyse avec IA (optionnel pour contexte supplémentaire)
-            const aiAnalysis = await analyzeWithAI(stockData, stock.symbol, stock.name);
+            // Conversion USD vers EUR avec taux en temps réel (pour l'IA)
+            const priceEUR = (stockData.c * usdToEurRate).toFixed(2);
+            
+            // Analyse avec IA avec contexte complet (optionnel pour conseil timing)
+            const aiAnalysis = await analyzeWithAI(stockData, stock.symbol, stock.name, trendData, volatilityData, distanceFromATH, priceEUR);
             console.log(`🤖 IA activée: ${aiAnalysis.enabled}`);
             
             // Définir signal et couleur basés sur variation 24h
@@ -463,11 +467,8 @@ async function sendAutomaticAlerts(forceRun = false) {
             // Utiliser la couleur de la recommandation intelligente
             const color = smartReco.color;
             
-            // Conversion USD vers EUR avec taux en temps réel
-            const priceEUR = (stockData.c * usdToEurRate).toFixed(2);
-            
             const fields = [
-                { name: '💰 Prix Actuel', value: `€${stockData.c} (${priceEUR}$)`, inline: true },
+                { name: '💰 Prix Actuel', value: `$${stockData.c} (${priceEUR}€)`, inline: true },
                 { name: '📊 Variation 24h', value: `${changePercent}%`, inline: true },
                 { name: '🎯 Signal 24h', value: signal, inline: true },
                 { name: `${trendData.emoji} Tendance 6 mois`, value: trendData.trend, inline: true },

@@ -26,7 +26,7 @@ function initializeGemini(apiKey) {
 /**
  * Analyse IA d'une action avec Groq - Llama 3.3 70B
  */
-async function analyzeWithAI(stockData, symbol, stockName, retryCount = 0) {
+async function analyzeWithAI(stockData, symbol, stockName, trendData, volatilityData, distanceFromATH, priceEUR, retryCount = 0) {
     if (!groq) {
         // Fallback automatique si Groq n'est pas configuré
         const changePercent = parseFloat(((stockData.c - stockData.pc) / stockData.pc * 100).toFixed(2));
@@ -54,21 +54,27 @@ async function analyzeWithAI(stockData, symbol, stockName, retryCount = 0) {
         const changePercent = ((stockData.c - stockData.pc) / stockData.pc * 100).toFixed(2);
         
         const prompt = `Action: ${stockName} (${symbol})
-Prix: $${stockData.c}
+Prix actuel: ${priceEUR}€ ($${stockData.c})
 Variation 24h: ${changePercent}%
+Tendance 6 mois: ${trendData.trend} (score: ${trendData.score}/2)
+Volatilité: ${volatilityData.level} (${volatilityData.volatility})
+Distance du plus haut historique (ATH): ${distanceFromATH}%
 
-Donne un conseil précis avec timing pour un investisseur.
-Exemples:
-- "Achète maintenant - Prix au plus bas depuis 3 mois"
-- "Attends la fin de la semaine - Tendance encore baissière"
-- "Vends rapidement - Signal de retournement baissier"
-- "Patiente encore 2-3 jours - Volatilité trop élevée"`;
+En tant qu'expert trader, analyse ces données et donne UN SEUL conseil précis avec timing.
+Ton conseil doit être varié selon le contexte:
+- Si tendance baissière + volatilité élevée → "Attends la stabilisation dans 1-2 semaines"
+- Si proche ATH + tendance neutre → "Évite d'acheter maintenant, risque de correction"
+- Si loin ATH + tendance haussière → "Achète maintenant, opportunité intéressante"
+- Si volatilité très élevée → "Patiente 3-5 jours, trop risqué pour l'instant"
+- Si tendance baissière forte → "Vends rapidement ou attends le rebond"
+
+Réponds en 1 phrase courte avec le prix en EUROS.`;
 
         const completion = await groq.chat.completions.create({
             messages: [
                 {
                     role: "system",
-                    content: "Tu es un expert trader qui donne des conseils précis avec timing. Réponds en 1 phrase courte et directe avec un conseil d'action immédiat (achète maintenant, attends X jours, vends rapidement, etc.) suivi d'une raison brève."
+                    content: "Tu es un expert trader prudent. Analyse TOUTES les données (tendance 6 mois, volatilité, distance ATH) pour donner un conseil varié et précis avec timing. Ne recommande PAS toujours d'acheter. Sois critique et mentionne les risques. Utilise TOUJOURS le prix en EUROS dans ta réponse."
                 },
                 {
                     role: "user",
@@ -76,7 +82,7 @@ Exemples:
                 }
             ],
             model: "llama-3.3-70b-versatile",
-            temperature: 0.7,
+            temperature: 0.8,
             max_tokens: 150
         });
         
@@ -100,7 +106,7 @@ Exemples:
         if (retryCount < 2) {
             console.log(`🔄 Nouvelle tentative Groq pour ${symbol}...`);
             await new Promise(resolve => setTimeout(resolve, 2000));
-            return analyzeWithAI(stockData, symbol, stockName, retryCount + 1);
+            return analyzeWithAI(stockData, symbol, stockName, trendData, volatilityData, distanceFromATH, priceEUR, retryCount + 1);
         }
         
         // Après 3 échecs : analyse de fallback basique
