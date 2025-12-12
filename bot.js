@@ -30,6 +30,10 @@ const ALERT_CHANNEL_ID = process.env.ALERT_CHANNEL_ID;
 const LOG_CHANNEL_ID = process.env.LOG_CHANNEL_ID;
 const ADMIN_USER_ID = process.env.ADMIN_USER_ID;
 
+// Rate limiting pour la commande /stock (1 utilisation par utilisateur toutes les 30 secondes)
+const cooldowns = new Map();
+const COOLDOWN_TIME = 30000; // 30 secondes en millisecondes
+
 // Fonction pour envoyer des logs dans Discord
 async function sendLog(message, type = 'info') {
     if (!LOG_CHANNEL_ID) return; // Logs désactivés si pas configuré
@@ -383,6 +387,26 @@ client.on('interactionCreate', async interaction => {
 });
 
 async function handleTest(interaction) {
+    const userId = interaction.user.id;
+    
+    // Vérifier le cooldown (sauf pour l'admin)
+    if (userId !== ADMIN_USER_ID) {
+        const now = Date.now();
+        const cooldownExpiration = cooldowns.get(userId);
+        
+        if (cooldownExpiration && now < cooldownExpiration) {
+            const timeLeft = Math.round((cooldownExpiration - now) / 1000);
+            await interaction.editReply(`⏳ Vous devez attendre encore **${timeLeft} secondes** avant d'utiliser cette commande.`);
+            return;
+        }
+        
+        // Définir le nouveau cooldown
+        cooldowns.set(userId, now + COOLDOWN_TIME);
+        
+        // Nettoyer le cooldown après expiration
+        setTimeout(() => cooldowns.delete(userId), COOLDOWN_TIME);
+    }
+    
     await interaction.editReply('🧪 **Test lancé!** Envoi du cycle d\'analyse en cours...');
     
     sendLog('🧪 Cycle de test lancé manuellement (bypass mode nuit)', 'info');
@@ -394,7 +418,26 @@ async function handleTest(interaction) {
 }
 
 async function handleStock(interaction) {
+    const userId = interaction.user.id;
     const symbol = interaction.options.getString('symbol').toUpperCase();
+    
+    // Vérifier le cooldown (sauf pour l'admin)
+    if (userId !== ADMIN_USER_ID) {
+        const now = Date.now();
+        const cooldownExpiration = cooldowns.get(userId);
+        
+        if (cooldownExpiration && now < cooldownExpiration) {
+            const timeLeft = Math.round((cooldownExpiration - now) / 1000);
+            await interaction.editReply(`⏳ Vous devez attendre encore **${timeLeft} secondes** avant d'utiliser cette commande.`);
+            return;
+        }
+        
+        // Définir le nouveau cooldown
+        cooldowns.set(userId, now + COOLDOWN_TIME);
+        
+        // Nettoyer le cooldown après expiration
+        setTimeout(() => cooldowns.delete(userId), COOLDOWN_TIME);
+    }
     
     await interaction.editReply(`📊 Analyse de **${symbol}** en cours...`);
     
