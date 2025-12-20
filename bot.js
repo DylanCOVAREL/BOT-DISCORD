@@ -93,15 +93,16 @@ const commands = [
                 .setRequired(true))
 ].map(command => command.toJSON());
 
-// Fonction pour récupérer le taux de change USD/EUR en temps réel
-async function getUSDtoEURRate() {
+// Fonction pour récupérer le taux de change EUR/USD en temps réel
+async function getEURtoUSDRate() {
     try {
         const quote = await yahooFinance.quote('EURUSD=X');
-        const eurUsdRate = quote.regularMarketPrice; // Taux EUR/USD (ex: 1.05 = 1 EUR = 1.05 USD)
-        return 1 / eurUsdRate; // Inverser pour obtenir USD/EUR (ex: 1/1.05 = 0.95 = 1 USD = 0.95 EUR)
+        const eurToUsdRate = quote.regularMarketPrice; // Taux EUR/USD (ex: 1.05 = 1 EUR = 1.05 USD)
+        console.log(`💱 Taux EUR/USD récupéré: ${eurToUsdRate}`);
+        return eurToUsdRate;
     } catch (error) {
         console.error('Erreur récupération taux EUR/USD:', error.message);
-        return 0.92; // Fallback si l'API échoue
+        return 1.05; // Fallback si l'API échoue (1 EUR = 1.05 USD)
     }
 }
 
@@ -442,8 +443,8 @@ async function handleStock(interaction) {
     await interaction.editReply(`📊 Analyse de **${symbol}** en cours...`);
     
     try {
-        // Récupérer le taux EUR/USD
-        const usdToEurRate = await getUSDtoEURRate();
+        // Récupérer le taux EUR/USD (ex: 1.05 = 1 EUR = 1.05 USD)
+        const eurToUsdRate = await getEURtoUSDRate();
         
         // Récupérer les données de l'action
         const [stockData, ath, historicalData] = await Promise.all([
@@ -470,17 +471,25 @@ async function handleStock(interaction) {
         // Gestion de la devise
         const currency = stockData.currency;
         let priceDisplay, priceForAI;
+        
+        console.log(`💱 Conversion pour ${symbol}: Prix brut = ${stockData.c} ${currency}, Taux EUR/USD = ${eurToUsdRate}`);
+        
         if (currency === 'EUR') {
-            const priceInUSD = (stockData.c / usdToEurRate).toFixed(2);
+            // Si prix en EUR, convertir en USD : EUR * eurToUsdRate
+            const priceInUSD = (stockData.c * eurToUsdRate).toFixed(2);
             priceDisplay = `${stockData.c.toFixed(2)}€ ($${priceInUSD})`;
             priceForAI = stockData.c.toFixed(2);
+            console.log(`   → Affichage EUR: ${priceDisplay}`);
         } else if (currency === 'USD') {
-            const priceInEUR = (stockData.c * usdToEurRate).toFixed(2);
+            // Si prix en USD, convertir en EUR : USD / eurToUsdRate
+            const priceInEUR = (stockData.c / eurToUsdRate).toFixed(2);
             priceDisplay = `$${stockData.c.toFixed(2)} (${priceInEUR}€)`;
             priceForAI = priceInEUR;
+            console.log(`   → Affichage USD: ${priceDisplay}`);
         } else {
             priceDisplay = `${stockData.c.toFixed(2)} ${currency}`;
             priceForAI = stockData.c.toFixed(2);
+            console.log(`   → Autre devise: ${priceDisplay}`);
         }
         
         // Analyse IA
@@ -561,9 +570,9 @@ async function sendAutomaticAlerts(forceRun = false) {
     console.log(`\n📊 ========== CYCLE D'ANALYSE AUTOMATIQUE ==========`);
     sendLog('📊 Début du cycle d\'analyse automatique', 'info');
     
-    // Récupérer le taux USD/EUR une seule fois pour tout le cycle
-    const usdToEurRate = await getUSDtoEURRate();
-    console.log(`💱 Taux USD/EUR: ${usdToEurRate}`);
+    // Récupérer le taux EUR/USD une seule fois pour tout le cycle
+    const eurToUsdRate = await getEURtoUSDRate();
+    console.log(`💱 Taux EUR/USD: ${eurToUsdRate} (1 EUR = ${eurToUsdRate} USD)`);
     
     let successCount = 0;
     let errorCount = 0;
@@ -603,24 +612,27 @@ async function sendAutomaticAlerts(forceRun = false) {
             
             // Récupérer la devise du prix depuis Yahoo Finance
             const currency = stockData.currency; // EUR, USD, GBP, etc.
-            console.log(`💱 Devise: ${currency}`);
+            console.log(`💱 Conversion pour ${stock.symbol}: Prix brut = ${stockData.c} ${currency}, Taux EUR/USD = ${eurToUsdRate}`);
             
             // Convertir le prix pour l'affichage
             let priceDisplay, priceForAI;
             if (currency === 'EUR') {
-                // Prix déjà en EUR, convertir en USD pour info
-                const priceInUSD = (stockData.c / usdToEurRate).toFixed(2);
+                // Si prix en EUR, convertir en USD : EUR * eurToUsdRate
+                const priceInUSD = (stockData.c * eurToUsdRate).toFixed(2);
                 priceDisplay = `${stockData.c.toFixed(2)}€ ($${priceInUSD})`;
                 priceForAI = stockData.c.toFixed(2);
+                console.log(`   → Affichage EUR: ${priceDisplay}`);
             } else if (currency === 'USD') {
-                // Prix en USD, convertir en EUR pour info
-                const priceInEUR = (stockData.c * usdToEurRate).toFixed(2);
+                // Si prix en USD, convertir en EUR : USD / eurToUsdRate
+                const priceInEUR = (stockData.c / eurToUsdRate).toFixed(2);
                 priceDisplay = `$${stockData.c.toFixed(2)} (${priceInEUR}€)`;
                 priceForAI = priceInEUR;
+                console.log(`   → Affichage USD: ${priceDisplay}`);
             } else {
                 // Autre devise (GBP, JPY, etc.) : afficher telle quelle
                 priceDisplay = `${stockData.c.toFixed(2)} ${currency}`;
                 priceForAI = stockData.c.toFixed(2);
+                console.log(`   → Autre devise: ${priceDisplay}`);
             }
             
             // Analyse avec IA avec contexte complet (optionnel pour conseil timing)
