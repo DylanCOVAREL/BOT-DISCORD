@@ -562,7 +562,7 @@ async function sendAutomaticAlerts(forceRun = false) {
     
     // Vos actions personnalisées à surveiller
     const stocksToWatch = [
-        { symbol: 'URTH', name: 'iShares MSCI World ETF' },  // Equivalent Core MSCI World
+        { symbol: 'IWDA', name: 'iShares MSCI World ETF' },  // Equivalent Core MSCI World
         { symbol: 'MCD', name: 'McDonald\'s' },
         { symbol: 'TTWO', name: 'Take-Two Interactive' },
         { symbol: 'NVDA', name: 'NVIDIA' },
