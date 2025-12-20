@@ -99,9 +99,11 @@ async function getEURtoUSDRate() {
         const quote = await yahooFinance.quote('EURUSD=X');
         const eurToUsdRate = quote.regularMarketPrice; // Taux EUR/USD (ex: 1.05 = 1 EUR = 1.05 USD)
         console.log(`💱 Taux EUR/USD récupéré: ${eurToUsdRate}`);
+        sendLog(`💱 Taux EUR/USD récupéré: ${eurToUsdRate.toFixed(4)} (1 EUR = ${eurToUsdRate.toFixed(4)} USD)`, 'info');
         return eurToUsdRate;
     } catch (error) {
         console.error('Erreur récupération taux EUR/USD:', error.message);
+        sendLog(`⚠️ Erreur récupération taux EUR/USD, utilisation du fallback 1.05`, 'warning');
         return 1.05; // Fallback si l'API échoue (1 EUR = 1.05 USD)
     }
 }
@@ -473,6 +475,7 @@ async function handleStock(interaction) {
         let priceDisplay, priceForAI;
         
         console.log(`💱 Conversion pour ${symbol}: Prix brut = ${stockData.c} ${currency}, Taux EUR/USD = ${eurToUsdRate}`);
+        sendLog(`🔍 **${symbol}** - Prix API: **${stockData.c.toFixed(2)} ${currency}** | Taux: ${eurToUsdRate.toFixed(4)}`, 'info');
         
         if (currency === 'EUR') {
             // Si prix en EUR, convertir en USD : EUR * eurToUsdRate
@@ -480,16 +483,19 @@ async function handleStock(interaction) {
             priceDisplay = `${stockData.c.toFixed(2)}€ ($${priceInUSD})`;
             priceForAI = stockData.c.toFixed(2);
             console.log(`   → Affichage EUR: ${priceDisplay}`);
+            sendLog(`✅ Affichage **${symbol}**: ${priceDisplay}`, 'success');
         } else if (currency === 'USD') {
             // Si prix en USD, convertir en EUR : USD / eurToUsdRate
             const priceInEUR = (stockData.c / eurToUsdRate).toFixed(2);
             priceDisplay = `$${stockData.c.toFixed(2)} (${priceInEUR}€)`;
             priceForAI = priceInEUR;
             console.log(`   → Affichage USD: ${priceDisplay}`);
+            sendLog(`✅ Affichage **${symbol}**: ${priceDisplay}`, 'success');
         } else {
             priceDisplay = `${stockData.c.toFixed(2)} ${currency}`;
             priceForAI = stockData.c.toFixed(2);
             console.log(`   → Autre devise: ${priceDisplay}`);
+            sendLog(`✅ Affichage **${symbol}**: ${priceDisplay}`, 'success');
         }
         
         // Analyse IA
@@ -613,6 +619,7 @@ async function sendAutomaticAlerts(forceRun = false) {
             // Récupérer la devise du prix depuis Yahoo Finance
             const currency = stockData.currency; // EUR, USD, GBP, etc.
             console.log(`💱 Conversion pour ${stock.symbol}: Prix brut = ${stockData.c} ${currency}, Taux EUR/USD = ${eurToUsdRate}`);
+            sendLog(`🔍 **${stock.symbol}** - Prix API: **${stockData.c.toFixed(2)} ${currency}**`, 'info');
             
             // Convertir le prix pour l'affichage
             let priceDisplay, priceForAI;
@@ -622,17 +629,20 @@ async function sendAutomaticAlerts(forceRun = false) {
                 priceDisplay = `${stockData.c.toFixed(2)}€ ($${priceInUSD})`;
                 priceForAI = stockData.c.toFixed(2);
                 console.log(`   → Affichage EUR: ${priceDisplay}`);
+                sendLog(`💶 **${stock.symbol}**: ${priceDisplay}`, 'info');
             } else if (currency === 'USD') {
                 // Si prix en USD, convertir en EUR : USD / eurToUsdRate
                 const priceInEUR = (stockData.c / eurToUsdRate).toFixed(2);
                 priceDisplay = `$${stockData.c.toFixed(2)} (${priceInEUR}€)`;
                 priceForAI = priceInEUR;
                 console.log(`   → Affichage USD: ${priceDisplay}`);
+                sendLog(`💵 **${stock.symbol}**: ${priceDisplay}`, 'info');
             } else {
                 // Autre devise (GBP, JPY, etc.) : afficher telle quelle
                 priceDisplay = `${stockData.c.toFixed(2)} ${currency}`;
                 priceForAI = stockData.c.toFixed(2);
                 console.log(`   → Autre devise: ${priceDisplay}`);
+                sendLog(`💴 **${stock.symbol}**: ${priceDisplay}`, 'info');
             }
             
             // Analyse avec IA avec contexte complet (optionnel pour conseil timing)
