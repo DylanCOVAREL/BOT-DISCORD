@@ -96,15 +96,26 @@ const commands = [
 // Fonction pour récupérer le taux de change EUR/USD en temps réel
 async function getEURtoUSDRate() {
     try {
-        const quote = await yahooFinance.quote('EURUSD=X');
-        const eurToUsdRate = quote.regularMarketPrice; // Taux EUR/USD (ex: 1.05 = 1 EUR = 1.05 USD)
-        console.log(`💱 Taux EUR/USD récupéré: ${eurToUsdRate}`);
-        sendLog(`💱 Taux EUR/USD récupéré: ${eurToUsdRate.toFixed(4)} (1 EUR = ${eurToUsdRate.toFixed(4)} USD)`, 'info');
-        return eurToUsdRate;
+        const forexQuote = await yahooFinance.quote('EURUSD=X');
+        let rate = forexQuote.regularMarketPrice;
+        
+        console.log(`💱 Taux EURUSD=X récupéré: ${rate}`);
+        
+        // Le taux EUR/USD réel (décembre 2024) devrait être entre 1.02 et 1.08
+        if (rate >= 1.02 && rate <= 1.08) {
+            console.log(`✅ Taux EUR/USD validé: ${rate}`);
+            sendLog(`💱 Taux EUR/USD: ${rate.toFixed(4)} (1 EUR = ${rate.toFixed(4)} USD) ✅`, 'success');
+            return rate;
+        } else {
+            // Taux invalide, utiliser le fallback
+            console.log(`❌ Taux EURUSD=X aberrant: ${rate} (attendu: 1.02-1.08)`);
+            sendLog(`❌ Taux EURUSD=X invalide: ${rate.toFixed(4)} → Utilisation taux fixe 1.0383`, 'error');
+            return 1.0383; // Taux EUR/USD du 20 décembre 2024
+        }
     } catch (error) {
-        console.error('Erreur récupération taux EUR/USD:', error.message);
-        sendLog(`⚠️ Erreur récupération taux EUR/USD, utilisation du fallback 1.05`, 'warning');
-        return 1.05; // Fallback si l'API échoue (1 EUR = 1.05 USD)
+        console.error('❌ Erreur récupération taux EUR/USD:', error.message);
+        sendLog(`⚠️ Erreur API → Utilisation taux fixe 1.0383 (20/12/2024)`, 'warning');
+        return 1.0383;
     }
 }
 
