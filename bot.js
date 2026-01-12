@@ -28,6 +28,10 @@ const client = new Client({
     ]
 });
 
+// Variables globales pour gérer le scheduling
+let analysisTimer = null;
+let isAnalysisRunning = false;
+
 // Configuration
 const ALERT_CHANNEL_ID = process.env.ALERT_CHANNEL_ID;
 const LOG_CHANNEL_ID = process.env.LOG_CHANNEL_ID;
@@ -349,50 +353,50 @@ client.once('ready', async () => {
     }
     
     // 🔥 ALERTES AUTOMATIQUES TOUTES LES HEURES 🔥
-    console.log('🤖 Système d\'alertes automatiques activé - Envoi toutes les heures pile');
-    sendLog('🤖 Système d\'alertes automatiques activé - Cycle à chaque heure pile', 'info');
+    console.log('🤖 Système d\'alertes automatiques activé - Cycle toutes les heures rondes');
+    sendLog('🤖 Système d\'alertes automatiques activé - Cycle toutes les heures rondes (00h, 01h, 02h...)', 'info');
     
     // Première analyse immédiate au démarrage
     await sendAutomaticAlerts();
     
-    // Calculer le délai jusqu'à la prochaine heure pile
-    const now = new Date();
-    const analysisHours = [9, 13, 19]; // Matin, Midi, Soir
-    
     function scheduleNextAnalysis() {
+        // Annuler le timer précédent s'il existe
+        if (analysisTimer) {
+            clearTimeout(analysisTimer);
+            analysisTimer = null;
+        }
+        
         const now = new Date();
         const currentHour = now.getHours();
         const currentMinutes = now.getMinutes();
-        const currentSeconds = now.getSeconds();
         
-        // Trouver la prochaine heure d'analyse
-        let nextHour = analysisHours.find(h => h > currentHour);
-        if (!nextHour) {
-            // Pas d'analyse aujourd'hui, la prochaine est demain à la première heure
-            nextHour = analysisHours[0];
-        }
-        
+        // Calculer la prochaine heure ronde
         const nextAnalysis = new Date();
-        nextAnalysis.setHours(nextHour, 0, 0, 0);
-        
-        // Si on dépasse l'heure (minutes/secondes), aller à demain
-        if (nextHour === currentHour && (currentMinutes > 0 || currentSeconds > 0)) {
-            const nextIndex = analysisHours.indexOf(currentHour);
-            if (nextIndex !== -1 && nextIndex < analysisHours.length - 1) {
-                nextAnalysis.setHours(analysisHours[nextIndex + 1], 0, 0, 0);
-            } else {
-                nextAnalysis.setDate(nextAnalysis.getDate() + 1);
-                nextAnalysis.setHours(analysisHours[0], 0, 0, 0);
-            }
+        if (currentMinutes === 0) {
+            // On est pile à l'heure ronde, passer à l'heure suivante
+            nextAnalysis.setHours(currentHour + 1, 0, 0, 0);
+        } else {
+            // Aller à la prochaine heure ronde
+            nextAnalysis.setHours(currentHour + 1, 0, 0, 0);
         }
         
         const timeUntilNext = nextAnalysis.getTime() - now.getTime();
         console.log(`⏰ Prochain cycle à ${nextAnalysis.getHours()}h00 (dans ${Math.round(timeUntilNext / 60000)} minutes)`);
         sendLog(`⏰ Prochain cycle programmé à ${nextAnalysis.getHours()}h00`, 'info');
         
-        setTimeout(() => {
-            sendAutomaticAlerts();
-            scheduleNextAnalysis(); // Planifier le prochain cycle
+        analysisTimer = setTimeout(async () => {
+            if (isAnalysisRunning) {
+                console.log('⚠️ Cycle déjà en cours, sauté...');
+                scheduleNextAnalysis();
+                return;
+            }
+            isAnalysisRunning = true;
+            try {
+                await sendAutomaticAlerts();
+            } finally {
+                isAnalysisRunning = false;
+                scheduleNextAnalysis(); // Planifier le prochain cycle
+            }
         }, timeUntilNext);
     }
     
@@ -576,6 +580,12 @@ async function handleStock(interaction) {
 }
 
 async function sendAutomaticAlerts(forceRun = false) {
+    // Vérifier si un cycle est déjà en cours (sauf si forceRun pour /test)
+    if (!forceRun && isAnalysisRunning) {
+        console.log('⚠️ Un cycle d\'analyse est déjà en cours, abandon...');
+        return;
+    }
+    
     // Vérifier l'heure (fuseau horaire local)
     const now = new Date();
     const hour = now.getHours();
