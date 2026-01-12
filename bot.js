@@ -14,8 +14,8 @@ http.createServer((req, res) => {
   } else {
     res.end();
   }
-}).listen(3000);
-console.log('🌐 Serveur HTTP actif sur le port 3000 (Keep-Alive Glitch)');
+}).listen(3001);
+console.log('🌐 Serveur HTTP actif sur le port 3001 (Keep-Alive Glitch)');
 
 const client = new Client({
     intents: [
