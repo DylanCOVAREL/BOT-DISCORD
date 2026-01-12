@@ -101,6 +101,9 @@ async function getEURtoUSDRate(retries = 3) {
     for (let attempt = 1; attempt <= retries; attempt++) {
         try {
             const quote = await yahooFinance.quote('EURUSD=X');
+            if (!quote || !quote.regularMarketPrice) {
+                throw new Error('Quote data unavailable for EURUSD=X');
+            }
             const eurToUsdRate = quote.regularMarketPrice;
             console.log(`💱 Taux EUR/USD récupéré: ${eurToUsdRate}`);
             return eurToUsdRate;
@@ -122,6 +125,10 @@ async function getStockData(symbol, retries = 3) {
     for (let attempt = 1; attempt <= retries; attempt++) {
         try {
             const quote = await yahooFinance.quote(symbol);
+            
+            if (!quote || !quote.regularMarketPrice) {
+                throw new Error(`Quote data unavailable for ${symbol}`);
+            }
             
             return {
                 c: quote.regularMarketPrice,           // Prix actuel
@@ -632,7 +639,7 @@ async function sendAutomaticAlerts(forceRun = false) {
     
     // Vos actions personnalisées à surveiller
     const stocksToWatch = [
-        { symbol: 'IWDA', name: 'iShares MSCI World ETF' },
+        { symbol: 'IWDA.AS', name: 'iShares MSCI World ETF' },
         { symbol: 'MCD', name: 'McDonald\'s' },
         { symbol: 'TTWO', name: 'Take-Two Interactive' },
         { symbol: 'NVDA', name: 'NVIDIA' },
