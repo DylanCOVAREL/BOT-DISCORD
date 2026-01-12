@@ -94,94 +94,128 @@ const commands = [
 ].map(command => command.toJSON());
 
 // Fonction pour récupérer le taux de change EUR/USD en temps réel
-async function getEURtoUSDRate() {
-    try {
-        const quote = await yahooFinance.quote('EURUSD=X');
-        const eurToUsdRate = quote.regularMarketPrice;
-        console.log(`💱 Taux EUR/USD récupéré: ${eurToUsdRate}`);
-        return eurToUsdRate;
-    } catch (error) {
-        console.error('Erreur récupération taux EUR/USD:', error.message);
-        return 1.04; // Fallback si l'API échoue (1 EUR = 1.04 USD)
-    }
-}
-
-// Fonction pour récupérer les données de marché
-async function getStockData(symbol) {
-    try {
-        const quote = await yahooFinance.quote(symbol);
-        
-        return {
-            c: quote.regularMarketPrice,           // Prix actuel
-            pc: quote.regularMarketPreviousClose,  // Prix de clôture précédent
-            h: quote.regularMarketDayHigh,         // Plus haut du jour
-            l: quote.regularMarketDayLow,          // Plus bas du jour
-            name: quote.longName || quote.shortName || symbol,
-            currency: quote.currency || 'USD'      // Devise du prix (EUR, USD, GBP, etc.)
-        };
-    } catch (error) {
-        console.error(`Erreur lors de la récupération des données pour ${symbol}:`, error.message);
-        return null;
-    }
-}
-
-// Fonction pour récupérer le prix maximum historique (All-Time High)
-async function getAllTimeHigh(symbol) {
-    try {
-        // Récupérer 5 ans de données historiques
-        const endDate = new Date();
-        const startDate = new Date();
-        startDate.setFullYear(startDate.getFullYear() - 5);
-        
-        const historicalData = await yahooFinance.historical(symbol, {
-            period1: startDate,
-            period2: endDate,
-            interval: '1wk' // Données hebdomadaires pour réduire la charge
-        });
-        
-        if (historicalData && historicalData.length > 0) {
-            const maxPrice = Math.max(...historicalData.map(d => d.high));
-            console.log(`✅ ATH trouvé pour ${symbol}: $${maxPrice.toFixed(2)}`);
-            return maxPrice;
+async function getEURtoUSDRate(retries = 3) {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+            const quote = await yahooFinance.quote('EURUSD=X', {
+                modules: ['price']
+            });
+            const eurToUsdRate = quote.regularMarketPrice;
+            console.log(`💱 Taux EUR/USD récupéré: ${eurToUsdRate}`);
+            return eurToUsdRate;
+        } catch (error) {
+            if (attempt < retries && error.message.includes('Too Many Requests')) {
+                const waitTime = Math.pow(2, attempt) * 1000; // Exponential backoff
+                console.log(`⏳ Rate limit taux EUR/USD, attente ${waitTime}ms avant retry ${attempt}/${retries}`);
+                await new Promise(resolve => setTimeout(resolve, waitTime));
+            } else {
+                console.error('Erreur récupération taux EUR/USD:', error.message);
+                return 1.04; // Fallback si l'API échoue
+            }
         }
-        
-        console.log(`⚠️ Pas de données ATH pour ${symbol}`);
-        return null;
-    } catch (error) {
-        console.error(`❌ Erreur récupération ATH pour ${symbol}:`, error.message);
-        return null;
     }
 }
 
-// Fonction pour récupérer les données historiques
-async function getHistoricalData(symbol, days = 30) {
-    try {
-        const endDate = new Date();
-        const startDate = new Date();
-        startDate.setDate(startDate.getDate() - days);
-        
-        const historicalData = await yahooFinance.historical(symbol, {
-            period1: startDate,
-            period2: endDate,
-            interval: '1d' // Données quotidiennes
-        });
-        
-        if (historicalData && historicalData.length > 0) {
-            // Convertir au format compatible avec les fonctions existantes
+// Fonction pour récupérer les données de marché avec retry
+async function getStockData(symbol, retries = 3) {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+            const quote = await yahooFinance.quote(symbol);
+            
             return {
-                c: historicalData.map(d => d.close),
-                h: historicalData.map(d => d.high),
-                l: historicalData.map(d => d.low),
-                o: historicalData.map(d => d.open),
-                t: historicalData.map(d => Math.floor(d.date.getTime() / 1000)),
-                s: 'ok'
+                c: quote.regularMarketPrice,           // Prix actuel
+                pc: quote.regularMarketPreviousClose,  // Prix de clôture précédent
+                h: quote.regularMarketDayHigh,         // Plus haut du jour
+                l: quote.regularMarketDayLow,          // Plus bas du jour
+                name: quote.longName || quote.shortName || symbol,
+                currency: quote.currency || 'USD'      // Devise du prix (EUR, USD, GBP, etc.)
             };
+        } catch (error) {
+            if (attempt < retries && error.message.includes('Too Many Requests')) {
+                const waitTime = Math.pow(2, attempt) * 1000; // Exponential backoff: 2s, 4s, 8s
+                console.log(`⏳ Rate limit pour ${symbol}, attente ${waitTime}ms avant retry ${attempt}/${retries}`);
+                await new Promise(resolve => setTimeout(resolve, waitTime));
+            } else {
+                console.error(`❌ Erreur récupération ${symbol} (attempt ${attempt}):`, error.message);
+                throw error;
+            }
         }
-        
-        return null;
-    } catch (error) {
-        console.error(`Erreur historique pour ${symbol}:`, error.message);
-        return null;
+    }
+}
+
+// Fonction pour récupérer le prix maximum historique avec retry
+async function getAllTimeHigh(symbol, retries = 3) {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+            // Récupérer 5 ans de données historiques
+            const endDate = new Date();
+            const startDate = new Date();
+            startDate.setFullYear(startDate.getFullYear() - 5);
+            
+            const historicalData = await yahooFinance.historical(symbol, {
+                period1: startDate,
+                period2: endDate,
+                interval: '1wk' // Données hebdomadaires pour réduire la charge
+            });
+            
+            if (historicalData && historicalData.length > 0) {
+                const maxPrice = Math.max(...historicalData.map(d => d.high));
+                console.log(`✅ ATH trouvé pour ${symbol}: $${maxPrice.toFixed(2)}`);
+                return maxPrice;
+            }
+            
+            console.log(`⚠️ Pas de données ATH pour ${symbol}`);
+            return null;
+        } catch (error) {
+            if (attempt < retries && error.message.includes('Too Many Requests')) {
+                const waitTime = Math.pow(2, attempt) * 1000; // Exponential backoff: 2s, 4s, 8s
+                console.log(`⏳ Rate limit ATH pour ${symbol}, attente ${waitTime}ms avant retry ${attempt}/${retries}`);
+                await new Promise(resolve => setTimeout(resolve, waitTime));
+            } else {
+                console.error(`❌ Erreur récupération ATH pour ${symbol} (attempt ${attempt}):`, error.message);
+                return null; // Return null au lieu de throw pour continuer le cycle
+            }
+        }
+    }
+}
+
+// Fonction pour récupérer les données historiques avec retry
+async function getHistoricalData(symbol, days = 30, retries = 3) {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+            const endDate = new Date();
+            const startDate = new Date();
+            startDate.setDate(startDate.getDate() - days);
+            
+            const historicalData = await yahooFinance.historical(symbol, {
+                period1: startDate,
+                period2: endDate,
+                interval: '1d' // Données quotidiennes
+            });
+            
+            if (historicalData && historicalData.length > 0) {
+                // Convertir au format compatible avec les fonctions existantes
+                return {
+                    c: historicalData.map(d => d.close),
+                    h: historicalData.map(d => d.high),
+                    l: historicalData.map(d => d.low),
+                    o: historicalData.map(d => d.open),
+                    t: historicalData.map(d => Math.floor(d.date.getTime() / 1000)),
+                    s: 'ok'
+                };
+            }
+            
+            return null;
+        } catch (error) {
+            if (attempt < retries && error.message.includes('Too Many Requests')) {
+                const waitTime = Math.pow(2, attempt) * 1000; // Exponential backoff: 2s, 4s, 8s
+                console.log(`⏳ Rate limit historique pour ${symbol}, attente ${waitTime}ms avant retry ${attempt}/${retries}`);
+                await new Promise(resolve => setTimeout(resolve, waitTime));
+            } else {
+                console.error(`❌ Erreur historique pour ${symbol} (attempt ${attempt}):`, error.message);
+                return null; // Return null au lieu de throw pour continuer le cycle
+            }
+        }
     }
 }
 
@@ -619,13 +653,13 @@ async function sendAutomaticAlerts(forceRun = false) {
             }
             
             // Pause pour éviter le rate limit
-            await new Promise(resolve => setTimeout(resolve, 800));
+            await new Promise(resolve => setTimeout(resolve, 2500));
             
             // Récupérer ATH
             const ath = await getAllTimeHigh(stock.symbol);
             
             // Pause pour éviter le rate limit
-            await new Promise(resolve => setTimeout(resolve, 800));
+            await new Promise(resolve => setTimeout(resolve, 2500));
             
             // Récupérer historique 6 mois
             const historicalData = await getHistoricalData(stock.symbol, 180);
@@ -727,7 +761,7 @@ async function sendAutomaticAlerts(forceRun = false) {
             successCount++;
             
             // Pause entre chaque stock pour éviter le rate limit
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            await new Promise(resolve => setTimeout(resolve, 5000));
             
         } catch (error) {
             console.error(`❌ Erreur pour ${stock.symbol}:`, error.message);
