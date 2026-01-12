@@ -10,14 +10,20 @@
     "start": "node bot.js",
     "dev": "nodemon bot.js"
   },
-  "keywords": ["discord", "bot", "trading", "ai", "predictions"],
+  "keywords": [
+    "discord",
+    "bot",
+    "trading",
+    "ai",
+    "predictions"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
     "discord.js": "^14.14.1",
     "dotenv": "^16.3.1",
-    "yahoo-finance2": "^2.11.3",
-    "groq-sdk": "^0.3.0"
+    "groq-sdk": "^0.3.0",
+    "yahoo-finance2": "^3.11.2"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"

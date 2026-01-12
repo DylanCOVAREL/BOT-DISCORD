@@ -1,6 +1,9 @@
 const { Client, GatewayIntentBits, EmbedBuilder, SlashCommandBuilder, REST, Routes } = require('discord.js');
 const dotenv = require('dotenv');
-const yahooFinance = require('yahoo-finance2').default;
+const YahooFinance = require('yahoo-finance2').default;
+const yahooFinance = new YahooFinance({
+    suppressNotices: ['yahooSurvey']
+});
 const { initializeGemini, analyzeWithAI } = require('./aiAnalysis');
 
 dotenv.config();
@@ -95,21 +98,9 @@ const commands = [
 
 // Fonction pour récupérer le taux de change EUR/USD en temps réel
 async function getEURtoUSDRate(retries = 3) {
-    const userAgents = [
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15'
-    ];
-    const userAgent = userAgents[Math.floor(Math.random() * userAgents.length)];
-    
     for (let attempt = 1; attempt <= retries; attempt++) {
         try {
-            const quote = await yahooFinance.quote('EURUSD=X', {
-                modules: ['price'],
-                headers: { 'User-Agent': userAgent }
-            });
+            const quote = await yahooFinance.quote('EURUSD=X');
             const eurToUsdRate = quote.regularMarketPrice;
             console.log(`💱 Taux EUR/USD récupéré: ${eurToUsdRate}`);
             return eurToUsdRate;
@@ -128,18 +119,9 @@ async function getEURtoUSDRate(retries = 3) {
 
 // Fonction pour récupérer les données de marché avec retry
 async function getStockData(symbol, retries = 3) {
-    const userAgents = [
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-    ];
-    const userAgent = userAgents[Math.floor(Math.random() * userAgents.length)];
-    
     for (let attempt = 1; attempt <= retries; attempt++) {
         try {
-            const quote = await yahooFinance.quote(symbol, {
-                headers: { 'User-Agent': userAgent }
-            });
+            const quote = await yahooFinance.quote(symbol);
             
             return {
                 c: quote.regularMarketPrice,           // Prix actuel
@@ -169,12 +151,6 @@ async function getStockData(symbol, retries = 3) {
 
 // Fonction pour récupérer le prix maximum historique avec retry
 async function getAllTimeHigh(symbol, retries = 3) {
-    const userAgents = [
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-    ];
-    const userAgent = userAgents[Math.floor(Math.random() * userAgents.length)];
-    
     for (let attempt = 1; attempt <= retries; attempt++) {
         try {
             // Récupérer 5 ans de données historiques
@@ -185,8 +161,7 @@ async function getAllTimeHigh(symbol, retries = 3) {
             const historicalData = await yahooFinance.historical(symbol, {
                 period1: startDate,
                 period2: endDate,
-                interval: '1wk', // Données hebdomadaires pour réduire la charge
-                headers: { 'User-Agent': userAgent }
+                interval: '1wk' // Données hebdomadaires pour réduire la charge
             });
             
             if (historicalData && historicalData.length > 0) {
@@ -215,12 +190,6 @@ async function getAllTimeHigh(symbol, retries = 3) {
 
 // Fonction pour récupérer les données historiques avec retry
 async function getHistoricalData(symbol, days = 30, retries = 3) {
-    const userAgents = [
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-    ];
-    const userAgent = userAgents[Math.floor(Math.random() * userAgents.length)];
-    
     for (let attempt = 1; attempt <= retries; attempt++) {
         try {
             const endDate = new Date();
@@ -230,8 +199,7 @@ async function getHistoricalData(symbol, days = 30, retries = 3) {
             const historicalData = await yahooFinance.historical(symbol, {
                 period1: startDate,
                 period2: endDate,
-                interval: '1d', // Données quotidiennes
-                headers: { 'User-Agent': userAgent }
+                interval: '1d' // Données quotidiennes
             });
             
             if (historicalData && historicalData.length > 0) {
@@ -664,12 +632,11 @@ async function sendAutomaticAlerts(forceRun = false) {
     
     // Vos actions personnalisées à surveiller
     const stocksToWatch = [
-        { symbol: 'IWDA', name: 'iShares MSCI World ETF' },  // Equivalent Core MSCI World
+        { symbol: 'IWDA', name: 'iShares MSCI World ETF' },
         { symbol: 'MCD', name: 'McDonald\'s' },
         { symbol: 'TTWO', name: 'Take-Two Interactive' },
         { symbol: 'NVDA', name: 'NVIDIA' },
         { symbol: 'TSLA', name: 'Tesla' },
-        { symbol: 'AMZN', name: 'Amazon' },
         { symbol: 'AI.PA', name: 'Air Liquide' }
     ];
     
@@ -687,12 +654,17 @@ async function sendAutomaticAlerts(forceRun = false) {
     for (const stock of stocksToWatch) {
         try {
             console.log(`📊 Analyse de ${stock.name} (${stock.symbol})...`);
+            sendLog(`📊 Analyse de ${stock.symbol}...`, 'info');
+            
+            // Pause de 5s AVANT chaque stock pour éviter rate limit dès la 1ère requête
+            await new Promise(resolve => setTimeout(resolve, 5000));
             
             // Récupérer les données actuelles
             const stockData = await getStockData(stock.symbol);
             
             if (!stockData || !stockData.c) {
                 console.log(`⚠️ Pas de données pour ${stock.symbol}`);
+                sendLog(`⚠️ Pas de données pour ${stock.symbol}`, 'warning');
                 continue; // Passer à l'action suivante
             }
             
@@ -809,6 +781,7 @@ async function sendAutomaticAlerts(forceRun = false) {
             
         } catch (error) {
             console.error(`❌ Erreur pour ${stock.symbol}:`, error.message);
+            console.error(`Stack: ${error.stack}`);
             sendLog(`❌ Erreur analyse ${stock.symbol}: ${error.message}`, 'error');
             errorCount++;
         }
