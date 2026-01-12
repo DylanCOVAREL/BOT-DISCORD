@@ -347,22 +347,46 @@ client.once('ready', async () => {
     
     // Calculer le délai jusqu'à la prochaine heure pile
     const now = new Date();
-    const minutesUntilNextHour = 60 - now.getMinutes();
-    const secondsUntilNextHour = 60 - now.getSeconds();
-    const msUntilNextHour = (minutesUntilNextHour - 1) * 60000 + secondsUntilNextHour * 1000;
+    const analysisHours = [9, 13, 19]; // Matin, Midi, Soir
     
-    console.log(`⏰ Prochain cycle dans ${minutesUntilNextHour} minutes (à ${now.getHours() + 1}h00)`);
-    sendLog(`⏰ Prochain cycle programmé à ${(now.getHours() + 1) % 24}h00`, 'info');
-    
-    // Attendre jusqu'à la prochaine heure pile, puis lancer un cycle toutes les heures
-    setTimeout(() => {
-        sendAutomaticAlerts(); // Premier cycle à l'heure pile
+    function scheduleNextAnalysis() {
+        const now = new Date();
+        const currentHour = now.getHours();
+        const currentMinutes = now.getMinutes();
+        const currentSeconds = now.getSeconds();
         
-        // Puis toutes les heures exactement
-        setInterval(async () => {
-            await sendAutomaticAlerts();
-        }, 3600000); // 1 heure = 3600000
-    }, msUntilNextHour);
+        // Trouver la prochaine heure d'analyse
+        let nextHour = analysisHours.find(h => h > currentHour);
+        if (!nextHour) {
+            // Pas d'analyse aujourd'hui, la prochaine est demain à la première heure
+            nextHour = analysisHours[0];
+        }
+        
+        const nextAnalysis = new Date();
+        nextAnalysis.setHours(nextHour, 0, 0, 0);
+        
+        // Si on dépasse l'heure (minutes/secondes), aller à demain
+        if (nextHour === currentHour && (currentMinutes > 0 || currentSeconds > 0)) {
+            const nextIndex = analysisHours.indexOf(currentHour);
+            if (nextIndex !== -1 && nextIndex < analysisHours.length - 1) {
+                nextAnalysis.setHours(analysisHours[nextIndex + 1], 0, 0, 0);
+            } else {
+                nextAnalysis.setDate(nextAnalysis.getDate() + 1);
+                nextAnalysis.setHours(analysisHours[0], 0, 0, 0);
+            }
+        }
+        
+        const timeUntilNext = nextAnalysis.getTime() - now.getTime();
+        console.log(`⏰ Prochain cycle à ${nextAnalysis.getHours()}h00 (dans ${Math.round(timeUntilNext / 60000)} minutes)`);
+        sendLog(`⏰ Prochain cycle programmé à ${nextAnalysis.getHours()}h00`, 'info');
+        
+        setTimeout(() => {
+            sendAutomaticAlerts();
+            scheduleNextAnalysis(); // Planifier le prochain cycle
+        }, timeUntilNext);
+    }
+    
+    scheduleNextAnalysis();
 });
 
 client.on('interactionCreate', async interaction => {
