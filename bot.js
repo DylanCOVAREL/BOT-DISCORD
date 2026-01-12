@@ -182,7 +182,7 @@ async function getHistoricalData(symbol, days = 30) {
         
         if (historicalData && historicalData.length > 0) {
             // Convertir au format compatible avec les fonctions existantes
-            return {
+            const converted = {
                 c: historicalData.map(d => d.close),
                 h: historicalData.map(d => d.high),
                 l: historicalData.map(d => d.low),
@@ -190,8 +190,11 @@ async function getHistoricalData(symbol, days = 30) {
                 t: historicalData.map(d => Math.floor(d.date.getTime() / 1000)),
                 s: 'ok'
             };
+            console.log(`✅ Historique ${symbol}: ${converted.c.length} jours récupérés`);
+            return converted;
         }
         
+        console.log(`⚠️ Pas de données historiques pour ${symbol}`);
         return null;
     } catch (error) {
         console.error(`❌ Erreur récupération historique ${symbol}:`, error.message);
@@ -642,6 +645,9 @@ async function sendAutomaticAlerts(forceRun = false) {
                 sendLog(`⚠️ Pas de données pour ${stock.symbol}`, 'warning');
                 continue; // Passer à l'action suivante
             }
+            
+            // Debug: vérifier les données reçues
+            console.log(`📊 ${stock.symbol} - ATH: ${ath ? ath.toFixed(2) : 'null'}, Historique: ${historicalData ? historicalData.c.length + ' jours' : 'null'}`);
             
             // Calcul de la variation 24h
             const changePercent = ((stockData.c - stockData.pc) / stockData.pc * 100).toFixed(2);
