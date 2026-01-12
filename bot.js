@@ -131,12 +131,17 @@ async function getStockData(symbol, retries = 3) {
                 currency: quote.currency || 'USD'      // Devise du prix (EUR, USD, GBP, etc.)
             };
         } catch (error) {
-            if (attempt < retries && error.message.includes('Too Many Requests')) {
-                const waitTime = Math.pow(2, attempt) * 1000; // Exponential backoff: 2s, 4s, 8s
-                console.log(`⏳ Rate limit pour ${symbol}, attente ${waitTime}ms avant retry ${attempt}/${retries}`);
+            const isRateLimit = error.message.includes('Too Many Requests') || error.message.includes('not valid JSON');
+            if (attempt < retries && isRateLimit) {
+                const waitTime = Math.pow(3, attempt) * 1500; // Exponential backoff: 4.5s, 13.5s, 40.5s
+                console.log(`⏳ Rate limit pour ${symbol} (attempt ${attempt}/${retries}), attente ${Math.round(waitTime/1000)}s...`);
                 await new Promise(resolve => setTimeout(resolve, waitTime));
             } else {
-                console.error(`❌ Erreur récupération ${symbol} (attempt ${attempt}):`, error.message);
+                console.error(`❌ Erreur récupération ${symbol}:`, error.message);
+                if (isRateLimit && attempt === retries) {
+                    console.log(`⚠️ ${symbol} rate-limité après ${retries} retries`);
+                    return null; // Retourner null au lieu de throw
+                }
                 throw error;
             }
         }
@@ -167,12 +172,15 @@ async function getAllTimeHigh(symbol, retries = 3) {
             console.log(`⚠️ Pas de données ATH pour ${symbol}`);
             return null;
         } catch (error) {
-            if (attempt < retries && error.message.includes('Too Many Requests')) {
-                const waitTime = Math.pow(2, attempt) * 1000; // Exponential backoff: 2s, 4s, 8s
-                console.log(`⏳ Rate limit ATH pour ${symbol}, attente ${waitTime}ms avant retry ${attempt}/${retries}`);
+            const isRateLimit = error.message.includes('Too Many Requests') || error.message.includes('not valid JSON');
+            if (attempt < retries && isRateLimit) {
+                const waitTime = Math.pow(3, attempt) * 1500; // Exponential backoff: 4.5s, 13.5s, 40.5s
+                console.log(`⏳ Rate limit ATH pour ${symbol} (attempt ${attempt}/${retries}), attente ${Math.round(waitTime/1000)}s...`);
                 await new Promise(resolve => setTimeout(resolve, waitTime));
             } else {
-                console.error(`❌ Erreur récupération ATH pour ${symbol} (attempt ${attempt}):`, error.message);
+                if (isRateLimit && attempt === retries) {
+                    console.log(`⚠️ ${symbol} ATH rate-limité après ${retries} retries`);
+                }
                 return null; // Return null au lieu de throw pour continuer le cycle
             }
         }
@@ -207,12 +215,15 @@ async function getHistoricalData(symbol, days = 30, retries = 3) {
             
             return null;
         } catch (error) {
-            if (attempt < retries && error.message.includes('Too Many Requests')) {
-                const waitTime = Math.pow(2, attempt) * 1000; // Exponential backoff: 2s, 4s, 8s
-                console.log(`⏳ Rate limit historique pour ${symbol}, attente ${waitTime}ms avant retry ${attempt}/${retries}`);
+            const isRateLimit = error.message.includes('Too Many Requests') || error.message.includes('not valid JSON');
+            if (attempt < retries && isRateLimit) {
+                const waitTime = Math.pow(3, attempt) * 1500; // Exponential backoff: 4.5s, 13.5s, 40.5s
+                console.log(`⏳ Rate limit historique pour ${symbol} (attempt ${attempt}/${retries}), attente ${Math.round(waitTime/1000)}s...`);
                 await new Promise(resolve => setTimeout(resolve, waitTime));
             } else {
-                console.error(`❌ Erreur historique pour ${symbol} (attempt ${attempt}):`, error.message);
+                if (isRateLimit && attempt === retries) {
+                    console.log(`⚠️ ${symbol} historique rate-limité après ${retries} retries`);
+                }
                 return null; // Return null au lieu de throw pour continuer le cycle
             }
         }
@@ -653,13 +664,13 @@ async function sendAutomaticAlerts(forceRun = false) {
             }
             
             // Pause pour éviter le rate limit
-            await new Promise(resolve => setTimeout(resolve, 2500));
+            await new Promise(resolve => setTimeout(resolve, 4000));
             
             // Récupérer ATH
             const ath = await getAllTimeHigh(stock.symbol);
             
             // Pause pour éviter le rate limit
-            await new Promise(resolve => setTimeout(resolve, 2500));
+            await new Promise(resolve => setTimeout(resolve, 4000));
             
             // Récupérer historique 6 mois
             const historicalData = await getHistoricalData(stock.symbol, 180);
@@ -761,7 +772,7 @@ async function sendAutomaticAlerts(forceRun = false) {
             successCount++;
             
             // Pause entre chaque stock pour éviter le rate limit
-            await new Promise(resolve => setTimeout(resolve, 5000));
+            await new Promise(resolve => setTimeout(resolve, 8000));
             
         } catch (error) {
             console.error(`❌ Erreur pour ${stock.symbol}:`, error.message);
