@@ -605,22 +605,30 @@ async function sendAutomaticAlerts(forceRun = false) {
     let successCount = 0;
     let errorCount = 0;
     
-    // Analyser TOUTES les actions de votre liste
+    // Analyser TOUTES les actions de votre liste (séquentiellement pour éviter rate limit)
     for (const stock of stocksToWatch) {
         try {
             console.log(`📊 Analyse de ${stock.name} (${stock.symbol})...`);
             
-            // Récupérer les données actuelles + ATH + historique 6 mois
-            const [stockData, ath, historicalData] = await Promise.all([
-                getStockData(stock.symbol),
-                getAllTimeHigh(stock.symbol),
-                getHistoricalData(stock.symbol, 180) // 6 mois = 180 jours
-            ]);
+            // Récupérer les données actuelles
+            const stockData = await getStockData(stock.symbol);
             
             if (!stockData || !stockData.c) {
                 console.log(`⚠️ Pas de données pour ${stock.symbol}`);
                 continue; // Passer à l'action suivante
             }
+            
+            // Pause pour éviter le rate limit
+            await new Promise(resolve => setTimeout(resolve, 800));
+            
+            // Récupérer ATH
+            const ath = await getAllTimeHigh(stock.symbol);
+            
+            // Pause pour éviter le rate limit
+            await new Promise(resolve => setTimeout(resolve, 800));
+            
+            // Récupérer historique 6 mois
+            const historicalData = await getHistoricalData(stock.symbol, 180);
             
             // Calcul de la variation 24h
             const changePercent = ((stockData.c - stockData.pc) / stockData.pc * 100).toFixed(2);
@@ -718,8 +726,8 @@ async function sendAutomaticAlerts(forceRun = false) {
             console.log(`✅ Alerte envoyée pour ${stock.symbol}`);
             successCount++;
             
-            // Pause de 0 seconde entre chaque action pour ne pas spam
-            await new Promise(resolve => setTimeout(resolve, 0));
+            // Pause entre chaque stock pour éviter le rate limit
+            await new Promise(resolve => setTimeout(resolve, 2000));
             
         } catch (error) {
             console.error(`❌ Erreur pour ${stock.symbol}:`, error.message);
