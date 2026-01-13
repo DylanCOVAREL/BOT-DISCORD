@@ -359,6 +359,11 @@ client.once('ready', async () => {
     console.log('🤖 Système d\'alertes automatiques activé - Cycle toutes les heures rondes');
     sendLog('🤖 Système d\'alertes automatiques activé - Cycle toutes les heures rondes (00h, 01h, 02h...)', 'info');
 
+    // Fonction pour obtenir l'heure de Paris
+    function getParisDate() {
+        return new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Paris" }));
+    }
+
     // Première analyse immédiate au démarrage
     await sendAutomaticAlerts();
 
@@ -369,23 +374,28 @@ client.once('ready', async () => {
             analysisTimer = null;
         }
 
-        const now = new Date();
+        const now = getParisDate();
         const currentHour = now.getHours();
         const currentMinutes = now.getMinutes();
 
-        // Calculer la prochaine heure ronde
-        const nextAnalysis = new Date();
-        if (currentMinutes === 0) {
-            // On est pile à l'heure ronde, passer à l'heure suivante
-            nextAnalysis.setHours(currentHour + 1, 0, 0, 0);
-        } else {
-            // Aller à la prochaine heure ronde
-            nextAnalysis.setHours(currentHour + 1, 0, 0, 0);
-        }
+        // Calculer la prochaine heure ronde (basé sur l'heure de Paris)
+        const nextAnalysis = getParisDate();
+        nextAnalysis.setHours(currentHour + 1, 0, 0, 0);
 
-        const timeUntilNext = nextAnalysis.getTime() - now.getTime();
-        console.log(`⏰ Prochain cycle à ${nextAnalysis.getHours()}h00 (dans ${Math.round(timeUntilNext / 60000)} minutes)`);
-        sendLog(`⏰ Prochain cycle programmé à ${nextAnalysis.getHours()}h00`, 'info');
+        // Calculer le délai par rapport au temps système réel (pour setTimeout)
+        // On doit utiliser getTime() des deux objets date, la différence sera correcte peu importe la TZ système
+        // car getParisDate() renvoie un objet Date ajusté qui représente le temps "absolu" correspondant à l'heure affichée à Paris
+        // ATTENTION: new Date().toLocaleString... crée une date qui "ressemble" à l'heure de Paris mais le .getTime() est décalé.
+        // C'est tricky. Simplifions : on calcule le nombre de minutes restantes jusqu'à la prochaine heure : 60 - minutes.
+
+        const minutesUntilNext = 60 - currentMinutes;
+        const msUntilNext = (minutesUntilNext * 60 * 1000) - (now.getSeconds() * 1000) - now.getMilliseconds();
+
+        // Heure d'affichage pour le log (L'heure de la "prochaine" exécution en heure de Paris)
+        const nextHourDisplay = (currentHour + 1) % 24;
+
+        console.log(`⏰ Prochain cycle programmé pour ${nextHourDisplay}h00 (Paris) - dans ${Math.round(msUntilNext / 60000)} minutes`);
+        sendLog(`⏰ Prochain cycle programmé à ${nextHourDisplay}h00 (Heure de Paris)`, 'info');
 
         analysisTimer = setTimeout(async () => {
             if (isAnalysisRunning) {
@@ -400,7 +410,7 @@ client.once('ready', async () => {
                 isAnalysisRunning = false;
                 scheduleNextAnalysis(); // Planifier le prochain cycle
             }
-        }, timeUntilNext);
+        }, msUntilNext);
     }
 
     scheduleNextAnalysis();
@@ -589,14 +599,15 @@ async function sendAutomaticAlerts(forceRun = false) {
         return;
     }
 
-    // Vérifier l'heure (fuseau horaire local)
-    const now = new Date();
-    const hour = now.getHours();
+    // Vérifier l'heure (Fuseau horaire Paris)
+    const now = new Date().toLocaleString("en-US", { timeZone: "Europe/Paris" });
+    const parisDate = new Date(now);
+    const hour = parisDate.getHours();
 
     // Bloquer les alertes automatiques entre 22h et 6h (sauf si forceRun = true pour /test)
     if (!forceRun && (hour >= 22 || hour < 6)) {
-        console.log(`🌙 Mode nuit activé (${hour}h) - Alertes automatiques désactivées jusqu'à 7h`);
-        sendLog(`🌙 Alertes automatiques ignorées (${hour}h) - Mode nuit actif`, 'info');
+        console.log(`🌙 Mode nuit activé (${hour}h Paris) - Alertes automatiques désactivées jusqu'à 6h`);
+        sendLog(`🌙 Alertes automatiques ignorées (${hour}h Paris) - Mode nuit actif`, 'info');
         return;
     }
 
