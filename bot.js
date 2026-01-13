@@ -19,6 +19,16 @@ http.createServer((req, res) => {
     }
 }).listen(process.env.PORT || 3001);
 console.log(`🌐 Serveur HTTP actif sur le port ${process.env.PORT || 3001}`);
+console.log('🚀 Démarrage du bot...');
+
+// Gestion des erreurs critiques pour éviter le crash silencieux
+process.on('uncaughtException', (error) => {
+    console.error('🔥 CRASH NON GÉRÉ (uncaughtException):', error);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('🔥 PROMESSE REJETÉE NON GÉRÉE:', reason);
+});
 
 const client = new Client({
     intents: [
@@ -99,6 +109,11 @@ const commands = [
                 .setDescription('Symbole de l\'action (ex: NVDA, TSLA, AI.PA)')
                 .setRequired(true))
 ].map(command => command.toJSON());
+
+// Fonction utilitaire pour obtenir l'heure de Paris
+function getParisDate() {
+    return new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Paris" }));
+}
 
 // Fonction pour récupérer le taux de change EUR/USD en temps réel
 async function getEURtoUSDRate() {
@@ -359,10 +374,7 @@ client.once('ready', async () => {
     console.log('🤖 Système d\'alertes automatiques activé - Cycle toutes les heures rondes');
     sendLog('🤖 Système d\'alertes automatiques activé - Cycle toutes les heures rondes (00h, 01h, 02h...)', 'info');
 
-    // Fonction pour obtenir l'heure de Paris
-    function getParisDate() {
-        return new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Paris" }));
-    }
+    sendLog('🤖 Système d\'alertes automatiques activé - Cycle toutes les heures rondes (00h, 01h, 02h...)', 'info');
 
     // Première analyse immédiate au démarrage
     await sendAutomaticAlerts();
@@ -600,8 +612,7 @@ async function sendAutomaticAlerts(forceRun = false) {
     }
 
     // Vérifier l'heure (Fuseau horaire Paris)
-    const now = new Date().toLocaleString("en-US", { timeZone: "Europe/Paris" });
-    const parisDate = new Date(now);
+    const parisDate = getParisDate();
     const hour = parisDate.getHours();
 
     // Bloquer les alertes automatiques entre 22h et 6h (sauf si forceRun = true pour /test)
