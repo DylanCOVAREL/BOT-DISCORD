@@ -21,7 +21,6 @@ Bot Discord intelligent qui analyse automatiquement 6 actions toutes les heures 
 3. **TTWO** - Take-Two Interactive
 4. **NVDA** - NVIDIA
 5. **TSLA** - Tesla
-6. **AMZN** - Amazon
 
 ## 🛠️ Technologies utilisées
 

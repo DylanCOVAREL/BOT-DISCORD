@@ -11,14 +11,14 @@ dotenv.config();
 // Keep-Alive pour Glitch.com (empêche la mise en veille)
 const http = require('http');
 http.createServer((req, res) => {
-  res.writeHead(200, { 'Content-Type': 'text/plain' });
-  if (req.method === 'HEAD' || req.method === 'GET') {
-    res.end('🤖 Bot Trading Discord is alive!');
-  } else {
-    res.end();
-  }
-}).listen(3001);
-console.log('🌐 Serveur HTTP actif sur le port 3001 (Keep-Alive Glitch)');
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    if (req.method === 'HEAD' || req.method === 'GET') {
+        res.end('🤖 Bot Trading Discord is alive!');
+    } else {
+        res.end();
+    }
+}).listen(process.env.PORT || 3001);
+console.log(`🌐 Serveur HTTP actif sur le port ${process.env.PORT || 3001}`);
 
 const client = new Client({
     intents: [
@@ -44,10 +44,10 @@ const COOLDOWN_TIME = 30000; // 30 secondes en millisecondes
 // Fonction pour envoyer des logs dans Discord
 async function sendLog(message, type = 'info') {
     if (!LOG_CHANNEL_ID) return; // Logs désactivés si pas configuré
-    
+
     const logChannel = client.channels.cache.get(LOG_CHANNEL_ID);
     if (!logChannel) return;
-    
+
     const emojis = {
         info: 'ℹ️',
         success: '✅',
@@ -56,7 +56,7 @@ async function sendLog(message, type = 'info') {
         start: '🚀',
         stop: '🛑'
     };
-    
+
     const colors = {
         info: '#3498db',
         success: '#00ff00',
@@ -65,18 +65,18 @@ async function sendLog(message, type = 'info') {
         start: '#9b59b6',
         stop: '#95a5a6'
     };
-    
+
     const embed = new EmbedBuilder()
         .setColor(colors[type] || colors.info)
         .setDescription(`${emojis[type] || 'ℹ️'} ${message}`)
         .setTimestamp();
-    
+
     try {
         // Si c'est une erreur critique et qu'on a un admin, le mentionner
         if (type === 'error' && ADMIN_USER_ID) {
-            await logChannel.send({ 
+            await logChannel.send({
                 content: `<@${ADMIN_USER_ID}> ⚠️ **ALERTE ERREUR**`,
-                embeds: [embed] 
+                embeds: [embed]
             });
         } else {
             await logChannel.send({ embeds: [embed] });
@@ -120,11 +120,11 @@ async function getEURtoUSDRate() {
 async function getStockData(symbol) {
     try {
         const quote = await yahooFinance.quote(symbol);
-        
+
         if (!quote || !quote.regularMarketPrice) {
             throw new Error(`Quote data unavailable for ${symbol}`);
         }
-        
+
         return {
             c: quote.regularMarketPrice,           // Prix actuel
             pc: quote.regularMarketPreviousClose,  // Prix de clôture précédent
@@ -146,19 +146,19 @@ async function getAllTimeHigh(symbol) {
         const endDate = new Date();
         const startDate = new Date();
         startDate.setFullYear(startDate.getFullYear() - 5);
-        
+
         const historicalData = await yahooFinance.historical(symbol, {
             period1: startDate,
             period2: endDate,
             interval: '1wk' // Données hebdomadaires pour réduire la charge
         });
-        
+
         if (historicalData && historicalData.length > 0) {
             const maxPrice = Math.max(...historicalData.map(d => d.high));
             console.log(`✅ ATH trouvé pour ${symbol}: $${maxPrice.toFixed(2)}`);
             return maxPrice;
         }
-        
+
         console.log(`⚠️ Pas de données ATH pour ${symbol}`);
         return null;
     } catch (error) {
@@ -173,13 +173,13 @@ async function getHistoricalData(symbol, days = 30) {
         const endDate = new Date();
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - days);
-        
+
         const historicalData = await yahooFinance.historical(symbol, {
             period1: startDate,
             period2: endDate,
             interval: '1d' // Données quotidiennes
         });
-        
+
         if (historicalData && historicalData.length > 0) {
             // Convertir au format compatible avec les fonctions existantes
             const converted = {
@@ -193,7 +193,7 @@ async function getHistoricalData(symbol, days = 30) {
             console.log(`✅ Historique ${symbol}: ${converted.c.length} jours récupérés`);
             return converted;
         }
-        
+
         console.log(`⚠️ Pas de données historiques pour ${symbol}`);
         return null;
     } catch (error) {
@@ -207,13 +207,13 @@ function calculateTrend(historicalData) {
     if (!historicalData || !historicalData.c || historicalData.c.length < 30) {
         return { trend: 'Données insuffisantes', emoji: '❓', score: 0 };
     }
-    
+
     const prices = historicalData.c;
     const firstMonth = prices.slice(0, 30).reduce((a, b) => a + b, 0) / 30; // Moyenne 1er mois
     const lastMonth = prices.slice(-30).reduce((a, b) => a + b, 0) / 30; // Moyenne dernier mois
-    
+
     const changePercent = ((lastMonth - firstMonth) / firstMonth) * 100;
-    
+
     if (changePercent > 15) {
         return { trend: 'Très Haussière', emoji: '🚀', score: 2 };
     } else if (changePercent > 5) {
@@ -232,21 +232,21 @@ function calculateVolatility(historicalData) {
     if (!historicalData || !historicalData.c || historicalData.c.length < 30) {
         return { volatility: 'Inconnue', emoji: '❓', level: 'N/A', score: 0 };
     }
-    
+
     const prices = historicalData.c;
     const returns = [];
-    
+
     // Calculer les variations quotidiennes en %
     for (let i = 1; i < prices.length; i++) {
-        const dailyReturn = ((prices[i] - prices[i-1]) / prices[i-1]) * 100;
+        const dailyReturn = ((prices[i] - prices[i - 1]) / prices[i - 1]) * 100;
         returns.push(dailyReturn);
     }
-    
+
     // Calculer l'écart-type (volatilité)
     const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
     const variance = returns.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / returns.length;
     const stdDev = Math.sqrt(variance);
-    
+
     let level, emoji;
     if (stdDev < 1.5) {
         level = 'Très Faible';
@@ -264,22 +264,22 @@ function calculateVolatility(historicalData) {
         level = 'Très Élevée';
         emoji = '🔴';
     }
-    
-    return { 
-        volatility: `${stdDev.toFixed(2)}%`, 
-        emoji, 
+
+    return {
+        volatility: `${stdDev.toFixed(2)}%`,
+        emoji,
         level,
-        score: stdDev 
+        score: stdDev
     };
 }
 
 // Fonction pour générer une recommandation intelligente
 function getSmartRecommendation(trendData, volatilityData, distanceFromATH, currentPrice) {
     let score = 0;
-    
+
     // Score basé sur la tendance (60% du poids)
     score += trendData.score * 3;
-    
+
     // Score basé sur la distance du ATH (30% du poids)
     if (distanceFromATH < -40) {
         score += 2; // Très loin du ATH = opportunité
@@ -290,15 +290,15 @@ function getSmartRecommendation(trendData, volatilityData, distanceFromATH, curr
     } else if (distanceFromATH > -15) {
         score -= 1;
     }
-    
+
     // Pénalité pour volatilité élevée (10% du poids)
     if (volatilityData.score > 4) {
         score -= 1;
     }
-    
+
     // Générer la recommandation
     let recommendation, emoji, color;
-    
+
     if (score >= 5) {
         recommendation = '🟢 ACHETER FORT';
         emoji = '💰';
@@ -320,20 +320,20 @@ function getSmartRecommendation(trendData, volatilityData, distanceFromATH, curr
         emoji = '❌';
         color = '#ff0000';
     }
-    
+
     return { recommendation, emoji, color, score };
 }
 
 client.once('ready', async () => {
     console.log(`✅ Bot connecté en tant que ${client.user.tag}`);
     sendLog(`Bot connecté en tant que **${client.user.tag}**`, 'start');
-    
+
     // Mise à jour du statut
     client.user.setActivity('les marchés 📈', { type: 'WATCHING' });
-    
+
     // Enregistrement des commandes slash
     const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
-    
+
     (async () => {
         try {
             console.log('📝 Enregistrement des commandes slash...');
@@ -348,31 +348,31 @@ client.once('ready', async () => {
             sendLog(`Erreur enregistrement commandes: ${error.message}`, 'error');
         }
     })();
-    
+
     // Initialiser Groq AI (GRATUIT)
     const geminiEnabled = initializeGemini(process.env.GEMINI_API_KEY);
     if (geminiEnabled) {
         sendLog('🤖 Groq AI activé - Llama 3.3 70B (100% gratuit)', 'success');
     }
-    
+
     // 🔥 ALERTES AUTOMATIQUES TOUTES LES HEURES 🔥
     console.log('🤖 Système d\'alertes automatiques activé - Cycle toutes les heures rondes');
     sendLog('🤖 Système d\'alertes automatiques activé - Cycle toutes les heures rondes (00h, 01h, 02h...)', 'info');
-    
+
     // Première analyse immédiate au démarrage
     await sendAutomaticAlerts();
-    
+
     function scheduleNextAnalysis() {
         // Annuler le timer précédent s'il existe
         if (analysisTimer) {
             clearTimeout(analysisTimer);
             analysisTimer = null;
         }
-        
+
         const now = new Date();
         const currentHour = now.getHours();
         const currentMinutes = now.getMinutes();
-        
+
         // Calculer la prochaine heure ronde
         const nextAnalysis = new Date();
         if (currentMinutes === 0) {
@@ -382,11 +382,11 @@ client.once('ready', async () => {
             // Aller à la prochaine heure ronde
             nextAnalysis.setHours(currentHour + 1, 0, 0, 0);
         }
-        
+
         const timeUntilNext = nextAnalysis.getTime() - now.getTime();
         console.log(`⏰ Prochain cycle à ${nextAnalysis.getHours()}h00 (dans ${Math.round(timeUntilNext / 60000)} minutes)`);
         sendLog(`⏰ Prochain cycle programmé à ${nextAnalysis.getHours()}h00`, 'info');
-        
+
         analysisTimer = setTimeout(async () => {
             if (isAnalysisRunning) {
                 console.log('⚠️ Cycle déjà en cours, sauté...');
@@ -402,7 +402,7 @@ client.once('ready', async () => {
             }
         }, timeUntilNext);
     }
-    
+
     scheduleNextAnalysis();
 });
 
@@ -430,92 +430,92 @@ client.on('interactionCreate', async interaction => {
 
 async function handleTest(interaction) {
     const userId = interaction.user.id;
-    
+
     // Vérifier le cooldown (sauf pour l'admin)
     if (userId !== ADMIN_USER_ID) {
         const now = Date.now();
         const cooldownExpiration = cooldowns.get(userId);
-        
+
         if (cooldownExpiration && now < cooldownExpiration) {
             const timeLeft = Math.round((cooldownExpiration - now) / 1000);
             await interaction.editReply(`⏳ Vous devez attendre encore **${timeLeft} secondes** avant d'utiliser cette commande.`);
             return;
         }
-        
+
         // Définir le nouveau cooldown
         cooldowns.set(userId, now + COOLDOWN_TIME);
-        
+
         // Nettoyer le cooldown après expiration
         setTimeout(() => cooldowns.delete(userId), COOLDOWN_TIME);
     }
-    
+
     await interaction.editReply('🧪 **Test lancé!** Envoi du cycle d\'analyse en cours...');
-    
+
     sendLog('🧪 Cycle de test lancé manuellement (bypass mode nuit)', 'info');
-    
+
     // Lancer immédiatement le cycle d'alertes (force l'exécution même la nuit)
     await sendAutomaticAlerts(true);
-    
+
     await interaction.followUp('✅ Cycle d\'analyse terminé! Consultez le canal des alertes.');
 }
 
 async function handleStock(interaction) {
     const userId = interaction.user.id;
     const symbol = interaction.options.getString('symbol').toUpperCase();
-    
+
     // Vérifier le cooldown (sauf pour l'admin)
     if (userId !== ADMIN_USER_ID) {
         const now = Date.now();
         const cooldownExpiration = cooldowns.get(userId);
-        
+
         if (cooldownExpiration && now < cooldownExpiration) {
             const timeLeft = Math.round((cooldownExpiration - now) / 1000);
             await interaction.editReply(`⏳ Vous devez attendre encore **${timeLeft} secondes** avant d'utiliser cette commande.`);
             return;
         }
-        
+
         // Définir le nouveau cooldown
         cooldowns.set(userId, now + COOLDOWN_TIME);
-        
+
         // Nettoyer le cooldown après expiration
         setTimeout(() => cooldowns.delete(userId), COOLDOWN_TIME);
     }
-    
+
     await interaction.editReply(`📊 Analyse de **${symbol}** en cours...`);
-    
+
     try {
         // Récupérer le taux EUR/USD (ex: 1.05 = 1 EUR = 1.05 USD)
         const eurToUsdRate = await getEURtoUSDRate();
-        
+
         // Récupérer les données de l'action
         const [stockData, ath, historicalData] = await Promise.all([
             getStockData(symbol),
             getAllTimeHigh(symbol),
             getHistoricalData(symbol, 180)
         ]);
-        
+
         if (!stockData || !stockData.c) {
             await interaction.editReply(`❌ Impossible de trouver l'action **${symbol}**. Vérifiez le symbole (ex: NVDA, TSLA, AAPL, AI.PA)`);
             return;
         }
-        
+
         // Calculs techniques
         const changePercent = ((stockData.c - stockData.pc) / stockData.pc * 100).toFixed(2);
         const emoji = changePercent >= 0 ? '📈' : '📉';
-        
+
         const trendData = calculateTrend(historicalData);
         const volatilityData = calculateVolatility(historicalData);
         const distanceFromATH = ath ? (((stockData.c - ath) / ath) * 100).toFixed(2) : -50;
-        
+
         const smartReco = getSmartRecommendation(trendData, volatilityData, parseFloat(distanceFromATH), stockData.c);
-        
+
         // Gestion de la devise
         const currency = stockData.currency;
         let priceDisplay, priceForAI;
-        
+
         console.log(`💱 Conversion pour ${symbol}: Prix brut = ${stockData.c} ${currency}, Taux EUR/USD = ${eurToUsdRate}`);
         sendLog(`🔍 **${symbol}** - Prix API: **${stockData.c.toFixed(2)} ${currency}** | Taux: ${eurToUsdRate.toFixed(4)}`, 'info');
-        
+
         if (currency === 'EUR') {
             // Si prix en EUR, convertir en USD : EUR * eurToUsdRate
             const priceInUSD = (stockData.c * eurToUsdRate).toFixed(2);
@@ -536,10 +536,10 @@ async function handleStock(interaction) {
             console.log(`   → Autre devise: ${priceDisplay}`);
             sendLog(`✅ Affichage **${symbol}**: ${priceDisplay}`, 'success');
         }
-        
+
         // Analyse IA
         const aiAnalysis = await analyzeWithAI(stockData, symbol, stockData.name, trendData, volatilityData, distanceFromATH, priceForAI, currency);
-        
+
         // Signal 24h
         let signal = '⚪ Stable';
         if (changePercent > 5) signal = '🚀 Très Haussier';
@@ -548,9 +548,9 @@ async function handleStock(interaction) {
         else if (changePercent < -5) signal = '💥 Très Baissier';
         else if (changePercent < -2) signal = '📉 Baissier';
         else if (changePercent < -0.5) signal = '➖ Légèrement Négatif';
-        
+
         const color = smartReco.color;
-        
+
         const fields = [
             { name: '💰 Prix Actuel', value: priceDisplay, inline: true },
             { name: '📊 Variation 24h', value: `${changePercent}%`, inline: true },
@@ -559,23 +559,23 @@ async function handleStock(interaction) {
             { name: `${volatilityData.emoji} Volatilité`, value: `${volatilityData.level} (${volatilityData.volatility})`, inline: true },
             { name: '🏆 Distance ATH', value: ath ? `${distanceFromATH}%` : 'N/A', inline: true }
         ];
-        
+
         if (aiAnalysis.enabled && aiAnalysis.analysis) {
-            fields.push({ 
-                name: '🤖 Conseil IA Timing', 
+            fields.push({
+                name: '🤖 Conseil IA Timing',
                 value: aiAnalysis.analysis
             });
         }
-        
+
         const embed = new EmbedBuilder()
             .setColor(color)
             .setTitle(`${emoji} ${stockData.name} (${symbol})`)
             .addFields(fields)
             .setTimestamp()
             .setFooter({ text: '📊 Analyse Technique 6 mois • 🤖 IA Groq' });
-        
+
         await interaction.editReply({ content: '✅ Analyse terminée:', embeds: [embed] });
-        
+
     } catch (error) {
         console.error(`❌ Erreur analyse ${symbol}:`, error);
         await interaction.editReply(`❌ Erreur lors de l'analyse de **${symbol}**: ${error.message}`);
@@ -588,25 +588,25 @@ async function sendAutomaticAlerts(forceRun = false) {
         console.log('⚠️ Un cycle d\'analyse est déjà en cours, abandon...');
         return;
     }
-    
+
     // Vérifier l'heure (fuseau horaire local)
     const now = new Date();
     const hour = now.getHours();
-    
+
     // Bloquer les alertes automatiques entre 22h et 6h (sauf si forceRun = true pour /test)
     if (!forceRun && (hour >= 22 || hour < 6)) {
         console.log(`🌙 Mode nuit activé (${hour}h) - Alertes automatiques désactivées jusqu'à 7h`);
         sendLog(`🌙 Alertes automatiques ignorées (${hour}h) - Mode nuit actif`, 'info');
         return;
     }
-    
+
     const channel = client.channels.cache.get(ALERT_CHANNEL_ID);
-    
+
     if (!channel) {
         console.error('❌ Canal d\'alertes introuvable. Vérifiez ALERT_CHANNEL_ID dans .env');
         return;
     }
-    
+
     // Vos actions personnalisées à surveiller
     const stocksToWatch = [
         { symbol: 'IWDA.AS', name: 'iShares MSCI World ETF' },
@@ -616,60 +616,60 @@ async function sendAutomaticAlerts(forceRun = false) {
         { symbol: 'TSLA', name: 'Tesla' },
         { symbol: 'AI.PA', name: 'Air Liquide' }
     ];
-    
+
     console.log(`\n📊 ========== CYCLE D'ANALYSE AUTOMATIQUE ==========`);
     sendLog('📊 Début du cycle d\'analyse automatique', 'info');
-    
+
     // Récupérer le taux EUR/USD une seule fois pour tout le cycle
     const eurToUsdRate = await getEURtoUSDRate();
     console.log(`💱 Taux EUR/USD: ${eurToUsdRate} (1 EUR = ${eurToUsdRate} USD)`);
-    
+
     let successCount = 0;
     let errorCount = 0;
-    
+
     // Analyser TOUTES les actions de votre liste
     for (const stock of stocksToWatch) {
         try {
             console.log(`📊 Analyse de ${stock.name} (${stock.symbol})...`);
             sendLog(`📊 Analyse de ${stock.symbol}...`, 'info');
-            
+
             // Récupérer TOUTES les données en parallèle
             const [stockData, ath, historicalData] = await Promise.all([
                 getStockData(stock.symbol),
                 getAllTimeHigh(stock.symbol),
                 getHistoricalData(stock.symbol, 180)
             ]);
-            
+
             if (!stockData || !stockData.c) {
                 console.log(`⚠️ Pas de données pour ${stock.symbol}`);
                 sendLog(`⚠️ Pas de données pour ${stock.symbol}`, 'warning');
                 continue; // Passer à l'action suivante
             }
-            
+
             // Debug: vérifier les données reçues
             console.log(`📊 ${stock.symbol} - ATH: ${ath ? ath.toFixed(2) : 'null'}, Historique: ${historicalData ? historicalData.c.length + ' jours' : 'null'}`);
-            
+
             // Calcul de la variation 24h
             const changePercent = ((stockData.c - stockData.pc) / stockData.pc * 100).toFixed(2);
             const emoji = changePercent >= 0 ? '📈' : '📉';
-            
+
             // Analyse technique sur 6 mois
             const trendData = calculateTrend(historicalData);
             const volatilityData = calculateVolatility(historicalData);
             console.log(`📈 Tendance 6 mois: ${trendData.trend}, Volatilité: ${volatilityData.level}`);
-            
+
             // Calcul de la distance par rapport au ATH
             const distanceFromATH = ath ? (((stockData.c - ath) / ath) * 100).toFixed(2) : -50;
-            
+
             // Générer la recommandation intelligente
             const smartReco = getSmartRecommendation(trendData, volatilityData, parseFloat(distanceFromATH), stockData.c);
             console.log(`💡 Recommandation: ${smartReco.recommendation}`);
-            
+
             // Récupérer la devise du prix depuis Yahoo Finance
             const currency = stockData.currency; // EUR, USD, GBP, etc.
             console.log(`💱 Conversion pour ${stock.symbol}: Prix brut = ${stockData.c} ${currency}, Taux EUR/USD = ${eurToUsdRate}`);
             sendLog(`🔍 **${stock.symbol}** - Prix API: **${stockData.c.toFixed(2)} ${currency}**`, 'info');
-            
+
             // Convertir le prix pour l'affichage
             let priceDisplay, priceForAI;
             if (currency === 'EUR') {
@@ -693,11 +693,11 @@ async function sendAutomaticAlerts(forceRun = false) {
                 console.log(`   → Autre devise: ${priceDisplay}`);
                 sendLog(`💴 **${stock.symbol}**: ${priceDisplay}`, 'info');
             }
-            
+
             // Analyse avec IA avec contexte complet (optionnel pour conseil timing)
             const aiAnalysis = await analyzeWithAI(stockData, stock.symbol, stock.name, trendData, volatilityData, distanceFromATH, priceForAI, currency);
             console.log(`🤖 IA activée: ${aiAnalysis.enabled}`);
-            
+
             // Définir signal et couleur basés sur variation 24h
             let signal = '⚪ Stable';
             if (changePercent > 5) {
@@ -713,10 +713,10 @@ async function sendAutomaticAlerts(forceRun = false) {
             } else if (changePercent < -0.5) {
                 signal = '➖ Légèrement Négatif';
             }
-            
+
             // Utiliser la couleur de la recommandation intelligente
             const color = smartReco.color;
-            
+
             const fields = [
                 { name: '💰 Prix Actuel', value: priceDisplay, inline: true },
                 { name: '📊 Variation 24h', value: `${changePercent}%`, inline: true },
@@ -725,26 +725,26 @@ async function sendAutomaticAlerts(forceRun = false) {
                 { name: `${volatilityData.emoji} Volatilité`, value: `${volatilityData.level} (${volatilityData.volatility})`, inline: true },
                 { name: '🏆 Distance ATH', value: ath ? `${distanceFromATH}%` : 'N/A', inline: true }
             ];
-            
+
             // Ajouter l'analyse IA si disponible
             if (aiAnalysis.enabled && aiAnalysis.analysis) {
-                fields.push({ 
-                    name: '🤖 Conseil IA Timing', 
+                fields.push({
+                    name: '🤖 Conseil IA Timing',
                     value: aiAnalysis.analysis
                 });
             }
-            
+
             const embed = new EmbedBuilder()
                 .setColor(color)
                 .setTitle(`${emoji} ${stock.name} (${stock.symbol})`)
                 .addFields(fields)
                 .setTimestamp()
                 .setFooter({ text: '📊 Analyse Technique 6 mois • 🤖 IA Groq' });
-            
+
             await channel.send({ embeds: [embed] });
             console.log(`✅ Alerte envoyée pour ${stock.symbol}`);
             successCount++;
-            
+
         } catch (error) {
             console.error(`❌ Erreur pour ${stock.symbol}:`, error.message);
             console.error(`Stack: ${error.stack}`);
@@ -752,7 +752,7 @@ async function sendAutomaticAlerts(forceRun = false) {
             errorCount++;
         }
     }
-    
+
     console.log(`✅ ========== CYCLE TERMINÉ ==========\n`);
     sendLog(`✅ Cycle terminé: ${successCount} succès, ${errorCount} erreurs`, successCount > 0 ? 'success' : 'warning');
 }
