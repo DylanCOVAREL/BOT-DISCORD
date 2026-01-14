@@ -372,6 +372,10 @@ client.once('ready', async () => {
 
     // 🔥 ALERTES AUTOMATIQUES TOUTES LES HEURES 🔥
     console.log('🤖 Système d\'alertes automatiques activé - Cycle toutes les heures rondes');
+    console.log(`🔍 [DEBUG] Configuration des alertes:`);
+    console.log(`   - ALERT_CHANNEL_ID: ${ALERT_CHANNEL_ID}`);
+    console.log(`   - LOG_CHANNEL_ID: ${LOG_CHANNEL_ID}`);
+    console.log(`   - ADMIN_USER_ID: ${ADMIN_USER_ID}`);
     sendLog('🤖 Système d\'alertes automatiques activé - Cycle toutes les heures rondes (00h, 01h, 02h...)', 'info');
 
     sendLog('🤖 Système d\'alertes automatiques activé - Cycle toutes les heures rondes (00h, 01h, 02h...)', 'info');
@@ -610,6 +614,9 @@ async function handleStock(interaction) {
 }
 
 async function sendAutomaticAlerts(forceRun = false) {
+    console.log(`\n🔍 [DEBUG] sendAutomaticAlerts appelée - forceRun: ${forceRun}, isAnalysisRunning: ${isAnalysisRunning}`);
+    console.log(`🔍 [DEBUG] ALERT_CHANNEL_ID: ${ALERT_CHANNEL_ID}`);
+    
     // Vérifier si un cycle est déjà en cours (sauf si forceRun pour /test)
     if (!forceRun && isAnalysisRunning) {
         console.log('⚠️ Un cycle d\'analyse est déjà en cours, abandon...');
@@ -619,6 +626,7 @@ async function sendAutomaticAlerts(forceRun = false) {
     // Vérifier l'heure (Fuseau horaire Paris)
     const parisDate = getParisDate();
     const hour = parisDate.getHours();
+    console.log(`🔍 [DEBUG] Heure de Paris: ${hour}h, Date complète: ${parisDate.toLocaleString('fr-FR', { timeZone: 'Europe/Paris' })}`);
 
     // Bloquer les alertes automatiques entre 22h et 6h (sauf si forceRun = true pour /test)
     if (!forceRun && (hour >= 22 || hour < 6)) {
@@ -627,12 +635,17 @@ async function sendAutomaticAlerts(forceRun = false) {
         return;
     }
 
+    console.log(`🔍 [DEBUG] Vérification du canal...`);
     const channel = client.channels.cache.get(ALERT_CHANNEL_ID);
 
     if (!channel) {
         console.error('❌ Canal d\'alertes introuvable. Vérifiez ALERT_CHANNEL_ID dans .env');
+        console.error(`🔍 [DEBUG] Canaux disponibles: ${Array.from(client.channels.cache.keys()).join(', ')}`);
+        sendLog(`❌ Canal d'alertes (${ALERT_CHANNEL_ID}) introuvable!`, 'error');
         return;
     }
+    
+    console.log(`✅ Canal trouvé: ${channel.name}`);
 
     // Vos actions personnalisées à surveiller
     const stocksToWatch = [
