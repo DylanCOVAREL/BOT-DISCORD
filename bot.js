@@ -115,9 +115,15 @@ function getParisDate() {
     return new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Paris" }));
 }
 
+// Fonction utilitaire pour attendre (delay en ms)
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 // Fonction pour récupérer le taux de change EUR/USD en temps réel
 async function getEURtoUSDRate() {
     try {
+        await sleep(1000); // Attendre 1s avant la requête
         const quote = await yahooFinance.quote('EURUSD=X');
         if (!quote || !quote.regularMarketPrice) {
             throw new Error('Quote data unavailable for EURUSD=X');
@@ -132,8 +138,13 @@ async function getEURtoUSDRate() {
 }
 
 // Fonction pour récupérer les données de marché
-async function getStockData(symbol) {
+async function getStockData(symbol, retryCount = 0) {
     try {
+        // Délai progressif pour éviter les 429
+        const delay = 1500 + (retryCount * 500); // 1.5s, puis 2s, 2.5s...
+        console.log(`⏳ Attente de ${delay}ms avant requête ${symbol}...`);
+        await sleep(delay);
+        
         const quote = await yahooFinance.quote(symbol);
 
         if (!quote || !quote.regularMarketPrice) {
@@ -150,13 +161,25 @@ async function getStockData(symbol) {
         };
     } catch (error) {
         console.error(`❌ Erreur récupération ${symbol}:`, error.message);
+        
+        // Retry logic pour les erreurs 429
+        if (error.message.includes('429') && retryCount < 2) {
+            console.log(`🔄 Retry ${retryCount + 1}/2 pour ${symbol} dans 3 secondes...`);
+            await sleep(3000);
+            return getStockData(symbol, retryCount + 1);
+        }
+        
         return null;
     }
 }
 
 // Fonction pour récupérer le prix maximum historique
-async function getAllTimeHigh(symbol) {
+async function getAllTimeHigh(symbol, retryCount = 0) {
     try {
+        // Délai progressif
+        const delay = 1500 + (retryCount * 500);
+        await sleep(delay);
+        
         // Récupérer 5 ans de données historiques
         const endDate = new Date();
         const startDate = new Date();
@@ -178,13 +201,25 @@ async function getAllTimeHigh(symbol) {
         return null;
     } catch (error) {
         console.error(`❌ Erreur récupération ATH ${symbol}:`, error.message);
+        
+        // Retry logic
+        if (error.message.includes('429') && retryCount < 2) {
+            console.log(`🔄 Retry ${retryCount + 1}/2 pour ATH ${symbol}...`);
+            await sleep(3000);
+            return getAllTimeHigh(symbol, retryCount + 1);
+        }
+        
         return null;
     }
 }
 
 // Fonction pour récupérer les données historiques
-async function getHistoricalData(symbol, days = 30) {
+async function getHistoricalData(symbol, days = 30, retryCount = 0) {
     try {
+        // Délai progressif
+        const delay = 1500 + (retryCount * 500);
+        await sleep(delay);
+        
         const endDate = new Date();
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - days);
@@ -213,6 +248,14 @@ async function getHistoricalData(symbol, days = 30) {
         return null;
     } catch (error) {
         console.error(`❌ Erreur récupération historique ${symbol}:`, error.message);
+        
+        // Retry logic
+        if (error.message.includes('429') && retryCount < 2) {
+            console.log(`🔄 Retry ${retryCount + 1}/2 pour historique ${symbol}...`);
+            await sleep(3000);
+            return getHistoricalData(symbol, days, retryCount + 1);
+        }
+        
         return null;
     }
 }
