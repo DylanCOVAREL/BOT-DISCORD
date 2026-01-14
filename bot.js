@@ -441,27 +441,34 @@ client.once('ready', async () => {
         const now = getParisDate();
         const currentHour = now.getHours();
         const currentMinutes = now.getMinutes();
+        const currentSeconds = now.getSeconds();
+
+        console.log(`🔍 [DEBUG scheduleNextAnalysis] Heure actuelle: ${currentHour}:${String(currentMinutes).padStart(2, '0')}:${String(currentSeconds).padStart(2, '0')} (Paris)`);
 
         // Calculer la prochaine heure ronde (basé sur l'heure de Paris)
-        const nextAnalysis = getParisDate();
-        nextAnalysis.setHours(currentHour + 1, 0, 0, 0);
+        let msUntilNext;
+        
+        // Calcul simple : combien de ms jusqu'à la prochaine heure ronde
+        // Si on est à 10:15:30, la prochaine heure est 11:00:00
+        // = 45 min 30 sec = 45*60 + 30 = 2730 secondes
+        const minutesUntilNextHour = 60 - currentMinutes;
+        const secondsToWait = (minutesUntilNextHour * 60) - currentSeconds;
+        msUntilNext = secondsToWait * 1000;
+        
+        // Sécurité : si msUntilNext <= 0, on ajoute 1 heure
+        if (msUntilNext <= 0) {
+            msUntilNext = 3600000; // 1 heure en ms
+            console.log(`⚠️ [DEBUG] msUntilNext était <= 0, ajout de 1 heure`);
+        }
 
-        // Calculer le délai par rapport au temps système réel (pour setTimeout)
-        // On doit utiliser getTime() des deux objets date, la différence sera correcte peu importe la TZ système
-        // car getParisDate() renvoie un objet Date ajusté qui représente le temps "absolu" correspondant à l'heure affichée à Paris
-        // ATTENTION: new Date().toLocaleString... crée une date qui "ressemble" à l'heure de Paris mais le .getTime() est décalé.
-        // C'est tricky. Simplifions : on calcule le nombre de minutes restantes jusqu'à la prochaine heure : 60 - minutes.
-
-        const minutesUntilNext = 60 - currentMinutes;
-        const msUntilNext = (minutesUntilNext * 60 * 1000) - (now.getSeconds() * 1000) - now.getMilliseconds();
-
-        // Heure d'affichage pour le log (L'heure de la "prochaine" exécution en heure de Paris)
         const nextHourDisplay = (currentHour + 1) % 24;
+        const minutesToWait = Math.round(msUntilNext / 60000);
 
-        console.log(`⏰ Prochain cycle programmé pour ${nextHourDisplay}h00 (Paris) - dans ${Math.round(msUntilNext / 60000)} minutes`);
+        console.log(`⏰ Prochain cycle programmé pour ${nextHourDisplay}h00 (Paris) - dans ${minutesToWait} minutes (${msUntilNext}ms)`);
         sendLog(`⏰ Prochain cycle programmé à ${nextHourDisplay}h00 (Heure de Paris)`, 'info');
 
         analysisTimer = setTimeout(async () => {
+            console.log(`⏱️ [DEBUG] Timer expiré ! Exécution du cycle...`);
             if (isAnalysisRunning) {
                 console.log('⚠️ Cycle déjà en cours, sauté...');
                 scheduleNextAnalysis();
@@ -470,14 +477,20 @@ client.once('ready', async () => {
             isAnalysisRunning = true;
             try {
                 await sendAutomaticAlerts();
+            } catch (error) {
+                console.error('❌ Erreur dans le cycle automatique:', error);
+                sendLog(`Erreur cycle automatique: ${error.message}`, 'error');
             } finally {
                 isAnalysisRunning = false;
                 scheduleNextAnalysis(); // Planifier le prochain cycle
             }
         }, msUntilNext);
+        
+        console.log(`✅ Timer programmé avec ID: ${analysisTimer._id || analysisTimer}`);
     }
 
     scheduleNextAnalysis();
+    console.log(`✅ [STARTUP] scheduleNextAnalysis() appelée au démarrage`);
 });
 
 client.on('interactionCreate', async interaction => {
