@@ -377,7 +377,12 @@ client.once('ready', async () => {
     sendLog('🤖 Système d\'alertes automatiques activé - Cycle toutes les heures rondes (00h, 01h, 02h...)', 'info');
 
     // Première analyse immédiate au démarrage
-    await sendAutomaticAlerts();
+    try {
+        await sendAutomaticAlerts();
+    } catch (error) {
+        console.error('❌ Erreur lors du premier cycle d\'alertes:', error);
+        sendLog(`Erreur lors du premier cycle d'alertes: ${error.message}`, 'error');
+    }
 
     function scheduleNextAnalysis() {
         // Annuler le timer précédent s'il existe
